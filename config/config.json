@@ -1,0 +1,6 @@
+{
+  "requireComplete": true,
+  "devMode": false,
+  "allowedOrigins": ["https://gmu.pdx1.qualtrics.com", "https://gmu.qualtrics.com"\],
+  "targetOrigin": "https://gmu.pdx1.qualtrics.com"
+}

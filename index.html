@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>Plan Panel</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="panel" hidden>
+    <aside id="toolbox">
+      <h2>Toolbox</h2>
+      <p class="side-note">클릭하거나 타임라인으로 끌어다 놓으세요</p>
+      <div id="toolbox-cards"></div>
+    </aside>
+    <main id="main">
+      <section id="unity-area">Unity iframe placeholder</section>
+      <section id="timeline-area">
+        <div class="area-head">
+          <h2>Task Timeline</h2>
+          <span id="limit-note"></span>
+        </div>
+        <div id="timeline"></div>
+        <button id="submit-btn" type="button" disabled>Submit</button>
+      </section>
+    </main>
+  </div>
+  <script src="js/app.js"></script>
+</body>
+</html>

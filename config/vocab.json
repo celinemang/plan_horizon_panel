@@ -1,0 +1,46 @@
+{
+  "verbs": [
+    {
+      "id": "move_to",
+      "label": "Move to",
+      "params": [
+        { "name": "location", "label": "location", "pools": ["locations"] }
+      ]
+    },
+    {
+      "id": "grab",
+      "label": "Grab",
+      "params": [
+        { "name": "object", "label": "object", "pools": ["objects"] }
+      ]
+    },
+    {
+      "id": "place",
+      "label": "Place",
+      "params": [
+        { "name": "object", "label": "object", "pools": ["objects"] },
+        { "name": "location", "label": "location", "pools": ["locations"] }
+      ]
+    },
+    {
+      "id": "pour",
+      "label": "Pour",
+      "params": [
+        { "name": "object", "label": "object", "pools": ["objects"] },
+        { "name": "target", "label": "target", "pools": ["objects", "devices"] }
+      ]
+    },
+    {
+      "id": "turn_on",
+      "label": "Turn on",
+      "params": [
+        { "name": "device", "label": "device", "pools": ["devices"] }
+      ]
+    }
+  ],
+  "pools": {
+    "locations": ["table", "counter", "sink", "shelf", "fridge"],
+    "objects": ["mug", "kettle", "bowl", "pitcher", "jar"],
+    "devices": ["stove", "microwave", "coffee_machine", "faucet"]
+  }
+}
