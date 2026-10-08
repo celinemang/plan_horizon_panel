@@ -42,15 +42,19 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .area-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
 #limit-note { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
-#timeline { display: flex; flex-wrap: wrap; gap: 14px; min-height: 120px; margin-bottom: 14px; padding: 10px; border: 2px dashed var(--ink-soft); border-radius: 4px; background: var(--slot); }
-.timeline-hint { margin: auto; font-size: 13px; color: var(--ink-soft); }
+#timeline { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); align-content: start; gap: 10px; min-height: 120px; max-height: 300px; overflow-y: auto; margin-bottom: 14px; padding: 10px; border: 2px dashed var(--ink-soft); border-radius: 4px; background: var(--slot); }
+.timeline-hint { grid-column: 1 / -1; margin: auto; font-size: 13px; color: var(--ink-soft); }
 
-.slot { flex: 1 1 170px; min-width: 0; max-width: 100%; align-self: flex-start; }
-.slot-index { display: inline-block; min-width: 22px; margin-bottom: 6px; padding: 1px 6px; border: 2px solid var(--ink); border-radius: 2px; background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 700; text-align: center; }
+.slot { min-width: 0; }
+.slot-index { flex: none; min-width: 22px; margin-right: 8px; padding: 1px 6px; border: 2px solid var(--ink); border-radius: 2px; background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 700; text-align: center; }
 .slot.over .slot-card { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
 
 .slot-card { background: var(--card); cursor: grab; }
-.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.card-head { display: flex; align-items: center; margin-bottom: 6px; }
+.card-title { flex: 1; min-width: 0; font-size: 13px; }
+.slot-card { padding: 8px 10px; }
+/* 아직 파라미터를 다 고르지 않은 카드는 점선 테두리로 표시 */
+.slot.incomplete .slot-card { border-style: dashed; }
 .remove-btn { width: 22px; height: 22px; padding: 0; border: 2px solid var(--ink); border-radius: 2px; background: var(--card); color: var(--ink); font-size: 14px; line-height: 1; cursor: pointer; }
 .remove-btn:hover { background: var(--ink); color: var(--paper); }
 
