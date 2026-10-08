@@ -341,8 +341,8 @@
   }
 
   Promise.all([
-    fetch('config/vocab.json').then(function (r) { return r.json(); }),
-    fetch('config/config.json').then(function (r) { return r.json(); })
+    fetch('config/vocab.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }),
+    fetch('config/config.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
   ]).then(function (res) {
     vocab = res[0];
     config = res[1];
