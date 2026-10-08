@@ -36,7 +36,7 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 #main { flex: 1; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* Unity가 들어갈 자리: 화면(스크린) 느낌의 어두운 프레임 */
-#unity-area { flex: 1; min-height: 280px; display: flex; align-items: center; justify-content: center; border: 3px solid var(--ink); border-radius: 4px; box-shadow: var(--shadow); color: #c9c6d6; font-size: 13px; letter-spacing: 0.04em; background-color: #34323f; background-image: linear-gradient(45deg, #3b3948 25%, transparent 25%, transparent 75%, #3b3948 75%), linear-gradient(45deg, #3b3948 25%, transparent 25%, transparent 75%, #3b3948 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+#unity-area { flex: none; width: 100%; aspect-ratio: 16 / 9; min-height: 280px; display: flex; align-items: center; justify-content: center; border: 3px solid var(--ink); border-radius: 4px; box-shadow: var(--shadow); color: #c9c6d6; font-size: 13px; letter-spacing: 0.04em; background-color: #34323f; background-image: linear-gradient(45deg, #3b3948 25%, transparent 25%, transparent 75%, #3b3948 75%), linear-gradient(45deg, #3b3948 25%, transparent 25%, transparent 75%, #3b3948 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
 
 #timeline-area { padding: 14px; }
 .area-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
