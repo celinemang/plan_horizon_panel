@@ -176,7 +176,11 @@
 
     var head = document.createElement('div');
     head.className = 'card-head';
+    var idx = document.createElement('span');
+    idx.className = 'slot-index';
+    idx.textContent = String(index + 1);
     var title = document.createElement('span');
+    title.className = 'card-title';
     title.textContent = verb.label;
     var rm = document.createElement('button');
     rm.type = 'button';
@@ -189,6 +193,7 @@
       slots.splice(index, 1);
       render();
     });
+    head.appendChild(idx);
     head.appendChild(title);
     head.appendChild(rm);
     card.appendChild(head);
@@ -214,6 +219,7 @@
         if (submitted) { sel.value = item.params[param.name] || ''; return; }
         metrics.param_change_count++;
         item.params[param.name] = sel.value;
+        updateStatus();
         updateSubmit();
       });
       wrap.appendChild(cap);
@@ -231,6 +237,8 @@
     markFirstDrag();
     slots.push(newItem(verbId));
     render();
+    var tl = document.getElementById('timeline');
+    tl.scrollTop = tl.scrollHeight;   // 새 카드가 보이도록 맨 아래로
   }
 
   function readDrag(e) {
@@ -274,15 +282,12 @@
 
   function render() {
     var tl = document.getElementById('timeline');
+    var scrollTop = tl.scrollTop;
     tl.innerHTML = '';
     slots.forEach(function (item, i) {
       var slot = document.createElement('div');
       slot.className = 'slot';
       slot.dataset.slot = i;
-      var idx = document.createElement('div');
-      idx.className = 'slot-index';
-      idx.textContent = String(i + 1);
-      slot.appendChild(idx);
       slot.appendChild(buildSlotCard(i));
 
       slot.addEventListener('dragover', function (e) {
@@ -299,20 +304,35 @@
       hint.textContent = 'Click a card in the Toolbox or drag it here';
       tl.appendChild(hint);
     }
-    document.getElementById('limit-note').textContent =
-      isFinite(maxSteps)
-        ? slots.length + ' / ' + maxSteps + (isFull() ? ' — no more cards can be added' : '')
-        : String(slots.length);
+    tl.scrollTop = scrollTop;
+    updateStatus();
     document.querySelectorAll('#toolbox-cards .card').forEach(function (c) {
       c.classList.toggle('disabled', submitted || isFull());
     });
     updateSubmit();
   }
 
-  function isComplete() {
-    return slots.length > 0 && slots.every(function (item) {
-      return verbsById[item.verb].params.every(function (p) { return item.params[p.name]; });
+  // 카드 수 / 미완성 카드 수 표시와 미완성 카드의 점선 테두리 갱신
+  function updateStatus() {
+    var incomplete = 0;
+    document.querySelectorAll('#timeline .slot').forEach(function (el) {
+      var done = isItemComplete(slots[Number(el.dataset.slot)]);
+      el.classList.toggle('incomplete', !done);
+      if (!done) incomplete++;
     });
+    var note = isFinite(maxSteps)
+      ? slots.length + ' / ' + maxSteps + (isFull() ? ' — no more cards can be added' : '')
+      : slots.length + (slots.length === 1 ? ' card' : ' cards');
+    if (incomplete) note += ' · ' + incomplete + ' to finish';
+    document.getElementById('limit-note').textContent = note;
+  }
+
+  function isItemComplete(item) {
+    return verbsById[item.verb].params.every(function (p) { return item.params[p.name]; });
+  }
+
+  function isComplete() {
+    return slots.length > 0 && slots.every(isItemComplete);
   }
 
   function updateSubmit() {
