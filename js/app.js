@@ -2,7 +2,7 @@
   'use strict';
 
   var DEFAULT_N = 3, MIN_N = 2, MAX_N = 4;
-  var PLACEHOLDER = '선택하세요';
+  var PLACEHOLDER = 'Select...';
 
   var vocab, config;
   var verbsById = {};
@@ -297,11 +297,11 @@
     if (!slots.length) {
       var hint = document.createElement('div');
       hint.className = 'timeline-hint';
-      hint.textContent = 'Toolbox의 카드를 클릭하거나 여기로 끌어다 놓으세요';
+      hint.textContent = 'Click a card in the Toolbox or drag it here';
       tl.appendChild(hint);
     }
     document.getElementById('limit-note').textContent =
-      slots.length + ' / ' + maxSteps + (isFull() ? ' — 더 추가할 수 없습니다' : '');
+      slots.length + ' / ' + maxSteps + (isFull() ? ' — no more cards can be added' : '');
     document.querySelectorAll('#toolbox-cards .card').forEach(function (c) {
       c.classList.toggle('disabled', submitted || isFull());
     });
