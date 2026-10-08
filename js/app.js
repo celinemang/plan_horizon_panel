@@ -1,14 +1,13 @@
 (function () {
   'use strict';
 
-  var DEFAULT_N = 3, MIN_N = 2, MAX_N = 4;
   var PLACEHOLDER = 'Select...';
 
   var vocab, config;
   var verbsById = {};
   var entities;      // {locations:[], objects:[], devices:[]}
   var slots = [];    // {verb, params: {name: value}} — 카드를 추가한 만큼만 존재
-  var maxSteps = DEFAULT_N;   // 체크포인트의 n = 추가할 수 있는 최대 카드 수
+  var maxSteps = Infinity;   // 체크포인트의 n = 추가할 수 있는 최대 카드 수. n이 없으면 제한 없음
 
   var metrics, t0, submitted;
   var trial = { trial_id: null, checkpoint_id: null };
@@ -18,7 +17,7 @@
   // 새 트라이얼 시작: 슬롯과 지표를 초기화 (Step 5에서 checkpoint 수신 시 재사용)
   function startTrial(n) {
     slots = [];
-    maxSteps = n;
+    maxSteps = n == null ? Infinity : n;
     metrics = {
       opened_at: new Date().toISOString(),
       first_drag_ms: null,
@@ -90,7 +89,7 @@
 
   function validCheckpoint(m) {
     var ent = m.entities;
-    return Number.isInteger(m.n) && m.n >= MIN_N && m.n <= MAX_N &&
+    return (m.n == null || (Number.isInteger(m.n) && m.n >= 1)) &&
       ent && typeof ent === 'object' &&
       isStringArray(ent.locations) && isStringArray(ent.objects) && isStringArray(ent.devices);
   }
@@ -131,7 +130,7 @@
   function getN() {
     var raw = new URLSearchParams(location.search).get('n');
     var n = parseInt(raw, 10);
-    return n >= MIN_N && n <= MAX_N ? n : DEFAULT_N;
+    return n >= 1 ? n : null;   // ?n= 이 없거나 잘못되면 제한 없음
   }
 
   // 풀을 합치고 중복 제거 후 알파벳순 고정 (순서가 단서가 되지 않도록)
@@ -301,7 +300,9 @@
       tl.appendChild(hint);
     }
     document.getElementById('limit-note').textContent =
-      slots.length + ' / ' + maxSteps + (isFull() ? ' — no more cards can be added' : '');
+      isFinite(maxSteps)
+        ? slots.length + ' / ' + maxSteps + (isFull() ? ' — no more cards can be added' : '')
+        : String(slots.length);
     document.querySelectorAll('#toolbox-cards .card').forEach(function (c) {
       c.classList.toggle('disabled', submitted || isFull());
     });
