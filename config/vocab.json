@@ -4,43 +4,145 @@
       "id": "move_to",
       "label": "Move to",
       "params": [
-        { "name": "location", "label": "location", "pools": ["locations"] }
+        { "name": "location", "label": "location", "prompt": "Where does the robot go?", "hint": "Where...", "pools": ["locations"] }
       ]
     },
     {
       "id": "grab",
       "label": "Grab",
       "params": [
-        { "name": "object", "label": "object", "pools": ["objects"] }
+        { "name": "object", "label": "object", "prompt": "What does the robot grab?", "pools": ["objects"] }
       ]
     },
     {
       "id": "place",
       "label": "Place",
       "params": [
-        { "name": "object", "label": "object", "pools": ["objects"] },
-        { "name": "location", "label": "location", "pools": ["locations"] }
+        { "name": "object", "label": "object", "prompt": "What does the robot place?", "pools": ["objects"] },
+        { "name": "location", "label": "location", "prompt": "Where does it place it?", "hint": "Where...", "pools": ["locations", "surfaces"] }
       ]
     },
     {
       "id": "pour",
       "label": "Pour",
       "params": [
-        { "name": "object", "label": "object", "pools": ["objects"] },
-        { "name": "target", "label": "target", "pools": ["objects", "devices"] }
+        { "name": "object", "label": "object", "prompt": "What does the robot pour?", "pools": ["objects"] },
+        { "name": "target", "label": "target", "prompt": "What does it pour into?", "hint": "Into...", "pools": ["objects", "devices"] }
       ]
     },
     {
       "id": "turn_on",
       "label": "Turn on",
       "params": [
-        { "name": "device", "label": "device", "pools": ["devices"] }
+        { "name": "device", "label": "device", "prompt": "Which device does the robot turn on?", "pools": ["devices"] }
+      ]
+    },
+    {
+      "id": "fill",
+      "label": "Fill",
+      "enabled": true,
+      "params": [
+        { "name": "object", "label": "object", "prompt": "What does the robot fill?", "pools": ["objects"] }
       ]
     }
   ],
+  "rules": {
+    "pour": {
+      "object": { "allow": ["beans", "grounds", "pot", "cream", "sugar"] },
+      "target": { "allow": {
+        "beans": ["grinder"],
+        "grounds": ["maker", "filter"],
+        "pot": ["maker", "mug"],
+        "cream": ["mug", "pot"],
+        "sugar": ["mug", "pot"]
+      } }
+    },
+    "place": {
+      "location": { "deny": {
+        "sugar": ["maker", "grinder", "sink"],
+        "cream": ["maker", "grinder", "sink"],
+        "beans": ["maker", "sink"],
+        "grounds": ["grinder", "sink"]
+      } }
+    },
+    "fill": {
+      "object": { "allow": ["pot", "mug"] }
+    }
+  },
   "pools": {
-    "locations": ["table", "counter", "sink", "shelf", "fridge"],
-    "objects": ["mug", "kettle", "bowl", "pitcher", "jar"],
-    "devices": ["stove", "microwave", "coffee_machine", "faucet"]
+    "locations": ["beans", "grounds", "grinder", "filter_st", "pot_st", "sink", "maker", "mug_st", "cream", "sugar", "table", "person", "plate", "plate1", "plate2", "bowl", "egg", "flour", "tomato", "spatula", "milk2", "pancake", "spices", "board", "rice_cooker", "food", "lettuce", "stove", "fridge", "microwave", "dishwasher", "pan"],
+    "surfaces": ["counter"],
+    "objects": ["beans", "grounds", "filter", "pot", "mug", "cream", "sugar", "plate", "plate1", "plate2", "bowl", "egg", "flour", "tomato", "spatula", "milk2", "pancake", "spices", "board", "rice_cooker", "food", "lettuce", "pan"],
+    "devices": ["grinder", "maker"]
+  },
+  "labels": {
+    "beans": "Coffee beans",
+    "grinder": "Grinder",
+    "filter_st": "Filter",
+    "pot_st": "Pot",
+    "sink": "Sink",
+    "maker": "Coffee maker",
+    "mug_st": "Mugs",
+    "cream": "Cream",
+    "sugar": "Sugar",
+    "table": "Table",
+    "person": "Person",
+    "counter": "Counter",
+    "grounds": "Coffee grounds",
+    "filter": "Filter",
+    "pot": "Pot",
+    "mug": "Mug",
+    "plate": "Plate",
+    "plate1": "Plate 1",
+    "plate2": "Plate 2",
+    "bowl": "Bowl",
+    "egg": "Egg",
+    "flour": "Flour",
+    "tomato": "Tomato",
+    "spatula": "Spatula",
+    "milk2": "Milk",
+    "pancake": "Pancake",
+    "spices": "Spices",
+    "board": "Cutting board",
+    "rice_cooker": "Rice cooker",
+    "food": "Food",
+    "lettuce": "Lettuce",
+    "pan": "Pan",
+    "stove": "Stove",
+    "fridge": "Fridge",
+    "microwave": "Microwave",
+    "dishwasher": "Dishwasher"
+  },
+  "images": {
+    "locations": {
+      "beans": "assets/img/coffee_bean.png",
+      "grounds": "assets/img/grided_bean.png",
+      "grinder": "assets/img/grider.png",
+      "filter_st": "assets/img/filter.png",
+      "pot_st": "assets/img/pot.png",
+      "sink": "assets/img/sink.png",
+      "maker": "assets/img/coffee_machine.png",
+      "mug_st": "assets/img/cup.png",
+      "cream": "assets/img/cream.png",
+      "sugar": "assets/img/sugar.png",
+      "table": "assets/img/table.png",
+      "person": "assets/img/person.png"
+    },
+    "surfaces": {
+      "counter": "assets/places/counter.svg"
+    },
+    "objects": {
+      "beans": "assets/img/coffee_bean.png",
+      "grounds": "assets/img/grided_bean.png",
+      "filter": "assets/img/filter.png",
+      "pot": "assets/img/pot.png",
+      "mug": "assets/img/cup.png",
+      "cream": "assets/img/cream.png",
+      "sugar": "assets/img/sugar.png"
+    },
+    "devices": {
+      "grinder": "assets/img/grider.png",
+      "maker": "assets/img/coffee_machine.png"
+    }
   }
 }

@@ -3,27 +3,41 @@
 <head>
   <meta charset="utf-8">
   <title>Plan Panel</title>
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <link rel="stylesheet" href="css/style.css?v=30">
 </head>
 <body>
   <div id="panel" hidden>
     <aside id="toolbox">
       <h2>Toolbox</h2>
-      <p class="side-note">Click a card or drag it to the timeline</p>
+      <p class="side-note" id="side-note"></p>
       <div id="toolbox-cards"></div>
     </aside>
     <main id="main">
       <section id="unity-area">Unity iframe placeholder</section>
+      <div id="status-bar" hidden></div>
       <section id="timeline-area">
         <div class="area-head">
-          <h2>Task Timeline</h2>
+          <h2 id="timeline-title">Task Timeline</h2>
           <span id="limit-note"></span>
         </div>
+        <section id="picker" hidden>
+          <div class="picker-head">
+            <span id="picker-title"></span>
+            <button id="picker-cancel" type="button">Cancel</button>
+          </div>
+          <div id="picker-tiles"></div>
+        </section>
         <div id="timeline"></div>
+        <section id="places" hidden>
+          <p id="places-prompt"></p>
+          <div id="places-grid"></div>
+        </section>
         <button id="submit-btn" type="button" disabled>Submit</button>
       </section>
     </main>
   </div>
-  <script src="js/app.js?v=3"></script>
+  <p id="idle-note" hidden>Waiting for the study to start. This panel is meant to be opened inside the survey (or through mock_parent.html when testing).</p>
+  <script src="js/study-log.js?v=1"></script>
+  <script src="js/app.js?v=32"></script>
 </body>
 </html>

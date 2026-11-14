@@ -1,0 +1,1665 @@
+{
+ "version": 1,
+ "layout": "B_scattered",
+ "variants": [
+  {
+   "id": "L1",
+   "size": "large",
+   "factors": {
+    "beans_already_ground": false,
+    "water_already_in_maker": false,
+    "filter": true,
+    "cream": true,
+    "sugar": true,
+    "delivery": "person"
+   },
+   "n_steps": 32,
+   "n_distinct_places": 10,
+   "n_moves": 13,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "grinder",
+     "verb": "Move to",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "grinder",
+     "verb": "Pour",
+     "args": [
+      "beans",
+      "grinder"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "grinder",
+     "verb": "Turn on",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "grinder",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "grounds",
+      "counter"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "filter_st",
+     "verb": "Move to",
+     "args": [
+      "filter_st"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "filter_st",
+     "verb": "Grab",
+     "args": [
+      "filter"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "filter",
+      "maker"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 15,
+     "place": "pot_st",
+     "verb": "Move to",
+     "args": [
+      "pot_st"
+     ]
+    },
+    {
+     "i": 16,
+     "place": "pot_st",
+     "verb": "Grab",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 17,
+     "place": "sink",
+     "verb": "Move to",
+     "args": [
+      "sink"
+     ]
+    },
+    {
+     "i": 18,
+     "place": "sink",
+     "verb": "Fill",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 19,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 20,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "pot",
+      "maker"
+     ]
+    },
+    {
+     "i": 21,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 22,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 23,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 24,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 25,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 26,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 27,
+     "place": "cream",
+     "verb": "Move to",
+     "args": [
+      "cream"
+     ]
+    },
+    {
+     "i": 28,
+     "place": "cream",
+     "verb": "Pour",
+     "args": [
+      "cream",
+      "mug"
+     ]
+    },
+    {
+     "i": 29,
+     "place": "sugar",
+     "verb": "Move to",
+     "args": [
+      "sugar"
+     ]
+    },
+    {
+     "i": 30,
+     "place": "sugar",
+     "verb": "Pour",
+     "args": [
+      "sugar",
+      "mug"
+     ]
+    },
+    {
+     "i": 31,
+     "place": "person",
+     "verb": "Move to",
+     "args": [
+      "person"
+     ]
+    },
+    {
+     "i": 32,
+     "place": "person",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "person"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "L2",
+   "size": "large",
+   "factors": {
+    "beans_already_ground": false,
+    "water_already_in_maker": false,
+    "filter": true,
+    "cream": false,
+    "sugar": true,
+    "delivery": "table"
+   },
+   "n_steps": 30,
+   "n_distinct_places": 9,
+   "n_moves": 12,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "grinder",
+     "verb": "Move to",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "grinder",
+     "verb": "Pour",
+     "args": [
+      "beans",
+      "grinder"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "grinder",
+     "verb": "Turn on",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "grinder",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "grounds",
+      "counter"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "filter_st",
+     "verb": "Move to",
+     "args": [
+      "filter_st"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "filter_st",
+     "verb": "Grab",
+     "args": [
+      "filter"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "filter",
+      "maker"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 15,
+     "place": "pot_st",
+     "verb": "Move to",
+     "args": [
+      "pot_st"
+     ]
+    },
+    {
+     "i": 16,
+     "place": "pot_st",
+     "verb": "Grab",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 17,
+     "place": "sink",
+     "verb": "Move to",
+     "args": [
+      "sink"
+     ]
+    },
+    {
+     "i": 18,
+     "place": "sink",
+     "verb": "Fill",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 19,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 20,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "pot",
+      "maker"
+     ]
+    },
+    {
+     "i": 21,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 22,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 23,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 24,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 25,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 26,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 27,
+     "place": "sugar",
+     "verb": "Move to",
+     "args": [
+      "sugar"
+     ]
+    },
+    {
+     "i": 28,
+     "place": "sugar",
+     "verb": "Pour",
+     "args": [
+      "sugar",
+      "mug"
+     ]
+    },
+    {
+     "i": 29,
+     "place": "table",
+     "verb": "Move to",
+     "args": [
+      "table"
+     ]
+    },
+    {
+     "i": 30,
+     "place": "table",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "table"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "L3",
+   "size": "large",
+   "factors": {
+    "beans_already_ground": true,
+    "water_already_in_maker": false,
+    "filter": true,
+    "cream": true,
+    "sugar": true,
+    "delivery": "table"
+   },
+   "n_steps": 28,
+   "n_distinct_places": 9,
+   "n_moves": 12,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "grounds",
+      "counter"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "filter_st",
+     "verb": "Move to",
+     "args": [
+      "filter_st"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "filter_st",
+     "verb": "Grab",
+     "args": [
+      "filter"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "filter",
+      "maker"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "pot_st",
+     "verb": "Move to",
+     "args": [
+      "pot_st"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "pot_st",
+     "verb": "Grab",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "sink",
+     "verb": "Move to",
+     "args": [
+      "sink"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "sink",
+     "verb": "Fill",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 15,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 16,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "pot",
+      "maker"
+     ]
+    },
+    {
+     "i": 17,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 18,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 19,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 20,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 21,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 22,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 23,
+     "place": "cream",
+     "verb": "Move to",
+     "args": [
+      "cream"
+     ]
+    },
+    {
+     "i": 24,
+     "place": "cream",
+     "verb": "Pour",
+     "args": [
+      "cream",
+      "mug"
+     ]
+    },
+    {
+     "i": 25,
+     "place": "sugar",
+     "verb": "Move to",
+     "args": [
+      "sugar"
+     ]
+    },
+    {
+     "i": 26,
+     "place": "sugar",
+     "verb": "Pour",
+     "args": [
+      "sugar",
+      "mug"
+     ]
+    },
+    {
+     "i": 27,
+     "place": "table",
+     "verb": "Move to",
+     "args": [
+      "table"
+     ]
+    },
+    {
+     "i": 28,
+     "place": "table",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "table"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "L4",
+   "size": "large",
+   "factors": {
+    "beans_already_ground": false,
+    "water_already_in_maker": true,
+    "filter": true,
+    "cream": true,
+    "sugar": true,
+    "delivery": "person"
+   },
+   "n_steps": 26,
+   "n_distinct_places": 8,
+   "n_moves": 10,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "grinder",
+     "verb": "Move to",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "grinder",
+     "verb": "Pour",
+     "args": [
+      "beans",
+      "grinder"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "grinder",
+     "verb": "Turn on",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "grinder",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "grounds",
+      "counter"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "filter_st",
+     "verb": "Move to",
+     "args": [
+      "filter_st"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "filter_st",
+     "verb": "Grab",
+     "args": [
+      "filter"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "filter",
+      "maker"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 15,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 16,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 17,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 18,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 19,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 20,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 21,
+     "place": "cream",
+     "verb": "Move to",
+     "args": [
+      "cream"
+     ]
+    },
+    {
+     "i": 22,
+     "place": "cream",
+     "verb": "Pour",
+     "args": [
+      "cream",
+      "mug"
+     ]
+    },
+    {
+     "i": 23,
+     "place": "sugar",
+     "verb": "Move to",
+     "args": [
+      "sugar"
+     ]
+    },
+    {
+     "i": 24,
+     "place": "sugar",
+     "verb": "Pour",
+     "args": [
+      "sugar",
+      "mug"
+     ]
+    },
+    {
+     "i": 25,
+     "place": "person",
+     "verb": "Move to",
+     "args": [
+      "person"
+     ]
+    },
+    {
+     "i": 26,
+     "place": "person",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "person"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S1",
+   "size": "small",
+   "factors": {
+    "beans_already_ground": true,
+    "water_already_in_maker": false,
+    "filter": false,
+    "cream": false,
+    "sugar": false,
+    "delivery": "person"
+   },
+   "n_steps": 18,
+   "n_distinct_places": 6,
+   "n_moves": 8,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "pot_st",
+     "verb": "Move to",
+     "args": [
+      "pot_st"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "pot_st",
+     "verb": "Grab",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "sink",
+     "verb": "Move to",
+     "args": [
+      "sink"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "sink",
+     "verb": "Fill",
+     "args": [
+      "pot"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "pot",
+      "maker"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 15,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 16,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 17,
+     "place": "person",
+     "verb": "Move to",
+     "args": [
+      "person"
+     ]
+    },
+    {
+     "i": 18,
+     "place": "person",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "person"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S2",
+   "size": "small",
+   "factors": {
+    "beans_already_ground": false,
+    "water_already_in_maker": true,
+    "filter": false,
+    "cream": false,
+    "sugar": true,
+    "delivery": "table"
+   },
+   "n_steps": 18,
+   "n_distinct_places": 6,
+   "n_moves": 7,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "grinder",
+     "verb": "Move to",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "grinder",
+     "verb": "Pour",
+     "args": [
+      "beans",
+      "grinder"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "grinder",
+     "verb": "Turn on",
+     "args": [
+      "grinder"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "grinder",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 15,
+     "place": "sugar",
+     "verb": "Move to",
+     "args": [
+      "sugar"
+     ]
+    },
+    {
+     "i": 16,
+     "place": "sugar",
+     "verb": "Pour",
+     "args": [
+      "sugar",
+      "mug"
+     ]
+    },
+    {
+     "i": 17,
+     "place": "table",
+     "verb": "Move to",
+     "args": [
+      "table"
+     ]
+    },
+    {
+     "i": 18,
+     "place": "table",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "table"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S3",
+   "size": "small",
+   "factors": {
+    "beans_already_ground": true,
+    "water_already_in_maker": true,
+    "filter": true,
+    "cream": false,
+    "sugar": false,
+    "delivery": "table"
+   },
+   "n_steps": 18,
+   "n_distinct_places": 5,
+   "n_moves": 7,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "grounds",
+      "counter"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "filter_st",
+     "verb": "Move to",
+     "args": [
+      "filter_st"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "filter_st",
+     "verb": "Grab",
+     "args": [
+      "filter"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "filter",
+      "maker"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 15,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 16,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 17,
+     "place": "table",
+     "verb": "Move to",
+     "args": [
+      "table"
+     ]
+    },
+    {
+     "i": 18,
+     "place": "table",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "table"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "S4",
+   "size": "small",
+   "factors": {
+    "beans_already_ground": true,
+    "water_already_in_maker": true,
+    "filter": false,
+    "cream": true,
+    "sugar": false,
+    "delivery": "table"
+   },
+   "n_steps": 14,
+   "n_distinct_places": 5,
+   "n_moves": 6,
+   "steps": [
+    {
+     "i": 1,
+     "place": "beans",
+     "verb": "Move to",
+     "args": [
+      "beans"
+     ]
+    },
+    {
+     "i": 2,
+     "place": "beans",
+     "verb": "Grab",
+     "args": [
+      "grounds"
+     ]
+    },
+    {
+     "i": 3,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 4,
+     "place": "maker",
+     "verb": "Pour",
+     "args": [
+      "grounds",
+      "maker"
+     ]
+    },
+    {
+     "i": 5,
+     "place": "mug_st",
+     "verb": "Move to",
+     "args": [
+      "mug_st"
+     ]
+    },
+    {
+     "i": 6,
+     "place": "mug_st",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 7,
+     "place": "maker",
+     "verb": "Move to",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 8,
+     "place": "maker",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "maker"
+     ]
+    },
+    {
+     "i": 9,
+     "place": "maker",
+     "verb": "Turn on",
+     "args": [
+      "maker"
+     ]
+    },
+    {
+     "i": 10,
+     "place": "maker",
+     "verb": "Grab",
+     "args": [
+      "mug"
+     ]
+    },
+    {
+     "i": 11,
+     "place": "cream",
+     "verb": "Move to",
+     "args": [
+      "cream"
+     ]
+    },
+    {
+     "i": 12,
+     "place": "cream",
+     "verb": "Pour",
+     "args": [
+      "cream",
+      "mug"
+     ]
+    },
+    {
+     "i": 13,
+     "place": "table",
+     "verb": "Move to",
+     "args": [
+      "table"
+     ]
+    },
+    {
+     "i": 14,
+     "place": "table",
+     "verb": "Place",
+     "args": [
+      "mug",
+      "table"
+     ]
+    }
+   ]
+  }
+ ]
+}
