@@ -345,7 +345,7 @@
   function onUnityComplete(d) {
     sendToParent({ type: 'run_complete', trial_id: unity.pid, run_log: d.run_log });
     setLocked(true);
-    setStatus('The robot has finished. You can continue.');
+    setStatus('The robot has finished. You can continue by clicking Next page below.');
   }
 
   function onUnityError(message) {
