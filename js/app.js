@@ -22,6 +22,10 @@
   var pendingMessages = [];   // config 로딩 전에 도착한 메시지
   var ready = false;
   var studyLog = null;
+  var allVerbs = [];     // vocab.verbs before the "enabled" filter: used to label the robot's done steps
+  // Undo/Redo: JSON snapshots of `slots`. Reset at every checkpoint, so Undo never goes back past the carried-over plan.
+  var history = { past: [], future: [], current: '[]' };
+  var confirmOpen = false;
 
   function $(id) { return document.getElementById(id); }
 
@@ -42,9 +46,13 @@
       click_count: 0,
       unity_pick_count: 0,
       unity_pick_rejected: 0,
+      undo_count: 0,
+      redo_count: 0,
+      submit_cancel_count: 0,
       input_mode: inputMode,
       prefilled_cards: slots.length
     };
+    resetHistory();
     t0 = performance.now();
     submitted = false;
     if (studyLog) studyLog.begin(buildResponse());
@@ -55,6 +63,42 @@
   }
 
   function editable() { return !!metrics && !locked && !submitted; }
+
+  // ---------- Undo / Redo ----------
+
+  function resetHistory() {
+    history = { past: [], future: [], current: JSON.stringify(slots) };
+  }
+
+  // Called from render() (every edit ends there) and from the dropdown select handler (the one edit without render).
+  function recordHistory() {
+    var now = JSON.stringify(slots);
+    if (now === history.current) return;
+    history.past.push(history.current);
+    history.future = [];
+    history.current = now;
+  }
+
+  function applyHistory(from, to, counter) {
+    if (!editable() || !from.length) return;
+    to.push(history.current);
+    history.current = from.pop();
+    slots = JSON.parse(history.current);
+    activeSlot = null;
+    insertAfter = null;
+    closePicker();
+    metrics[counter]++;
+    render();
+  }
+
+  function undo() { applyHistory(history.past, history.future, 'undo_count'); }
+  function redo() { applyHistory(history.future, history.past, 'redo_count'); }
+
+  function updateHistoryButtons() {
+    var u = $('undo-btn'), r = $('redo-btn');
+    if (u) u.disabled = !editable() || !history.past.length;
+    if (r) r.disabled = !editable() || !history.future.length;
+  }
 
   // ---------- 어휘 / 선택지 ----------
 
@@ -120,7 +164,7 @@
 
   function setLocked(on) {
     locked = on;
-    if (on) closePicker();
+    if (on) { closePicker(); closeConfirm(false); }
     $('toolbox').classList.toggle('locked', on);
     $('timeline-area').classList.toggle('locked', on);
   }
@@ -156,8 +200,42 @@
     pre.textContent = JSON.stringify({ response: response, metrics: metrics }, null, 2);
   }
 
+  // ---------- Submit confirmation (in-page dialog: window.confirm is blocked in the cross-origin Qualtrics iframe) ----------
+  // Writing time keeps running while the dialog is open; the real submit happens only on "Yes, submit".
+
+  function openConfirm() {
+    if (!editable() || confirmOpen || $('submit-btn').disabled) return;
+    confirmOpen = true;
+    var n = slots.length;
+    $('confirm-count').textContent = 'Your plan has ' + n + (n === 1 ? ' step.' : ' steps.');
+    $('confirm').hidden = false;
+    $('panel').inert = true;   // nothing behind the dialog (cards, Unity) can be clicked or focused
+    if (studyLog) studyLog.record('submit_confirm_open', {steps: n});
+    $('confirm-back').focus();
+  }
+
+  // cancelled = the participant went back to edit (counted and logged); false = closed by the app (submit / lock)
+  function closeConfirm(cancelled) {
+    if (!confirmOpen) return;
+    confirmOpen = false;
+    $('confirm').hidden = true;
+    $('panel').inert = false;
+    if (cancelled) {
+      if (metrics) metrics.submit_cancel_count++;
+      if (studyLog) studyLog.record('submit_confirm_cancel', {steps: slots.length});
+      $('submit-btn').focus();
+    }
+  }
+
+  function confirmSubmit() {
+    if (!confirmOpen) return;
+    closeConfirm(false);
+    submit();
+  }
+
   function submit() {
     if (!editable()) return;
+    var submittedUtc = new Date().toISOString();
     submitted = true;
     metrics.total_ms = Math.round(performance.now() - t0);
     if (studyLog) Object.assign(metrics, studyLog.submit(buildResponse()));
@@ -176,7 +254,8 @@
         drone_count: unity.drone_count,
         unity: unity.cp
       });
-      postToUnity({ source: 'hri_qualtrics', type: 'resume', pid: unity.pid, index: unity.cp.index });
+      postToUnity({ source: 'hri_qualtrics', type: 'resume', pid: unity.pid, index: unity.cp.index,
+        submitted_utc: submittedUtc });
       setLocked(true);
       setStatus('Thanks! Watch the robot...');
     } else {
@@ -224,6 +303,10 @@
     if (config.allowedOrigins.indexOf(event.origin) === -1) return;
     if (event.source !== window.parent) return;
     var m = event.data;
+    if (m && m.type === 'study_log_ack' && Array.isArray(m.event_ids)) {
+      if (studyLog) studyLog.acknowledge(m.event_ids);
+      return;
+    }
     if (!m || typeof m !== 'object' || m.type !== 'checkpoint') return;
     if (!validCheckpoint(m)) {
       console.warn('invalid checkpoint message ignored');
@@ -241,6 +324,13 @@
       try { d = JSON.parse(d); } catch (err) { return; }
     }
     if (!d || typeof d !== 'object' || d.source !== 'hri_unity' || String(d.pid) !== unity.pid) return;
+    if (['run_started', 'checkpoint_shown', 'checkpoint_submitted', 'checkpoint_resumed', 'run_completed', 'run_aborted'].indexOf(d.type) !== -1) {
+      // Acknowledge only after our outbox is persisted locally. This is NOT a server-save acknowledgement.
+      if (studyLog && studyLog.record(d.type, d))
+        postToUnity({source: 'hri_qualtrics', type: 'event_ack', pid: unity.pid, run_id: d.run_id, event_id: d.event_id});
+      if (d.type === 'run_completed' || d.type === 'run_aborted') onUnityComplete(d);
+      return;
+    }
     if (studyLog && ['ready', 'run_complete', 'error', 'item_clicked']   // hover is not logged (study decision 2026-11-14)
       .indexOf(d.type) !== -1) studyLog.record('unity_' + d.type, d);
     if (d.type === 'ready') onUnityReady(d);
@@ -248,6 +338,7 @@
     else if (d.type === 'run_complete') onUnityComplete(d);
     else if (d.type === 'error') onUnityError(String(d.message));
     else if (d.type === 'item_clicked') onUnityItemClicked(String(d.id || ''));
+    else if (d.type === 'step_done') onUnityStepDone(d);
   }
 
   // Unity 화면 안의 물건을 클릭하면 지금 빈칸에 채운다 (board 모드)
@@ -268,7 +359,7 @@
     lastPick = { id: id, t: now };
     if (studyLog) studyLog.record("item_pick_attempt", {id: id, editable: editable(), target: currentTarget()});
     function outcome(reason) { if (studyLog) studyLog.record('item_pick_result', {id: id, result: reason}); }
-    if (inputMode !== 'board' || !editable()) { outcome('not_editable'); return; }
+    if (inputMode !== 'board' || !editable() || confirmOpen) { outcome('not_editable'); return; }   // no edits behind the submit dialog
     var key = conceptKey(id);
     var item = boardItems().filter(function (o) { return o.id === key; })[0];
     if (!item) { outcome('unknown_item'); return; }   // 어휘에 없는 물건은 무시
@@ -285,7 +376,7 @@
     unity.readySeen = true;
     // Unity sends the aspect (width / height) of the pixel-art scene it frames; the Unity box takes that shape (no sky/ground margins)
     if (typeof d.scene_aspect === 'number' && d.scene_aspect > 0.4 && d.scene_aspect < 3) {
-      $('unity-area').style.setProperty('--unity-aspect', String(d.scene_aspect));
+      $('panel').style.setProperty('--unity-aspect', String(d.scene_aspect));   // #panel: the grid columns need it too
     }
     unity.variant_id = d.variant_id;
     unity.drone_count = d.drone_count;
@@ -295,7 +386,9 @@
       variant_id: d.variant_id,
       drone_count: d.drone_count,
       layout_seed: d.layout_seed,
-      build_version: d.build_version
+      build_version: d.build_version,
+      plan_sha256: d.plan_sha256,
+      plan_step_count: d.plan_step_count
     });
     setStatus('Watch the robot...');
   }
@@ -314,6 +407,9 @@
       robot_place: d.robot_place,
       drones_shown: d.drones_shown,
       drone_places_shown: d.drone_places_shown,
+      checkpoint_id: d.checkpoint_id,
+      visible_marker_count: d.visible_marker_count,
+      drone_markers: d.drone_markers,
       utc: d.utc
     };
     if (studyLog) studyLog.record('unity_checkpoint', d);
@@ -321,10 +417,12 @@
     startTrial(unity.maxSteps, keep);
     // 공변량: 보여 준 드론(방문) 수와 그중 서로 다른 장소 수
     var places = Array.isArray(d.drone_places_shown) ? d.drone_places_shown : [];
-    // drones_shown: 화면에 보이는 드론 수 (Unity 값, 재방문은 1대). visits_shown: 드론이 가리키는 방문 수 (중복 포함)
+    // drones_shown counts represented visits; visible_marker_count counts actually visible drone markers.
     metrics.drones_shown = typeof d.drones_shown === 'number' ? d.drones_shown : null;
+    metrics.visible_marker_count = typeof d.visible_marker_count === 'number' ? d.visible_marker_count : null;
     metrics.visits_shown = places.length;
     metrics.distinct_places_shown = places.filter(function (p, i) { return places.indexOf(p) === i; }).length;
+    metrics.steps_done_count = renderDone(d.steps_done);
     closePicker();
     var dbg = $('debug-out');
     if (dbg) dbg.remove();
@@ -342,10 +440,120 @@
     $('status-bar').dataset.checkpoint = String(d.index);   // 번호는 화면에 보이지 않는다 (테스트용 표식)
   }
 
+  // ---------- "The robot has done so far" (read-only) ----------
+  // Unity sends only the steps it has ALREADY executed (array positions < robot_step_index). The panel never loads
+  // variants.json, so it cannot show future steps. Old builds send no steps_done: the section stays hidden.
+  function verbForUnity(name) {
+    var key = String(name).toLowerCase();
+    return allVerbs.filter(function (v) { return v.id === key || String(v.label).toLowerCase() === key || v.id === key.replace(/ /g, '_'); })[0] || null;
+  }
+
+  function validDoneStep(s) {
+    return !!(s && typeof s === 'object' && typeof s.verb === 'string' && s.verb && isStringArray(s.args));
+  }
+
+  function doneKey(s) { return s.verb + '|' + s.args.join('|'); }
+
+  // One item: label only (no picture). Unknown ids are shown as raw text.
+  function doneItem(id) {
+    var span = document.createElement('span');
+    span.className = 'done-item';
+    span.appendChild(document.createTextNode(vocab.labels && vocab.labels[id] ? vocab.labels[id] : id));
+    return span;
+  }
+
+  function doneRow(step, number, animate) {
+    var verb = verbForUnity(step.verb);
+    var li = document.createElement('li');
+    li.className = 'done-row verb-' + (verb ? verb.id : 'other') + (animate ? ' done-new' : '');
+    var num = document.createElement('span');
+    num.className = 'done-num';
+    num.textContent = String(number);
+    var verbEl = document.createElement('span');
+    verbEl.className = 'done-verb';
+    verbEl.textContent = verb ? verb.label : step.verb;
+    var what = document.createElement('span');
+    what.className = 'done-what';
+    step.args.forEach(function (id, k) {
+      var p = verb && verb.params[k];
+      if (k > 0) {
+        var join = document.createElement('span');
+        join.className = 'done-join';
+        join.textContent = ' ' + (p && p.name === 'target' ? 'into' : p && p.name === 'location' ? 'at' : '') + ' ';
+        what.appendChild(join);
+      }
+      what.appendChild(doneItem(id));
+    });
+    li.appendChild(num);
+    li.appendChild(verbEl);
+    li.appendChild(what);
+    return li;
+  }
+
+  // Rows currently shown, in order (doneKey of each). Used to add only NEW rows (animated) instead of redrawing.
+  var doneShown = [];
+
+  function updateDoneCount() {
+    var c = $('done-count');
+    if (c) c.textContent = doneShown.length ? doneShown.length + (doneShown.length === 1 ? ' step' : ' steps') : '';
+  }
+
+  function markLatest() {
+    var list = $('done-list');
+    Array.prototype.forEach.call(list.querySelectorAll('.done-row.latest'), function (r) { r.classList.remove('latest'); });
+    var rows = list.querySelectorAll('.done-row');
+    if (rows.length) rows[rows.length - 1].classList.add('latest');
+  }
+
+  function appendDone(step, animate) {
+    var list = $('done-list');
+    var empty = list.querySelector('.done-empty');
+    if (empty) empty.remove();
+    doneShown.push(doneKey(step));
+    list.appendChild(doneRow(step, doneShown.length, animate));
+    markLatest();
+    updateDoneCount();
+    list.scrollTop = list.scrollHeight;   // newest step in view
+  }
+
+  // Full list from a checkpoint (source of truth). If what is shown is a prefix of it, only the missing rows are added.
+  // Returns the number of valid steps shown, or null when the message has no steps_done (section hidden).
+  function renderDone(raw) {
+    var area = $('done-area'), list = $('done-list');
+    if (!Array.isArray(raw)) { area.hidden = true; return null; }
+    var steps = raw.filter(validDoneStep).slice(0, 200);
+    var keys = steps.map(doneKey);
+    var isPrefix = doneShown.length <= keys.length && doneShown.every(function (k, i) { return k === keys[i]; });
+    if (!isPrefix) { doneShown = []; list.textContent = ''; }
+    steps.slice(doneShown.length).forEach(function (s) { appendDone(s, isPrefix && doneShown.length > 0); });
+    if (!steps.length) {
+      list.textContent = '';
+      var empty = document.createElement('li');
+      empty.className = 'done-empty';
+      empty.textContent = 'Nothing yet - the robot is about to start.';
+      list.appendChild(empty);
+      updateDoneCount();
+    }
+    area.hidden = false;
+    return steps.length;
+  }
+
+  // Live: Unity sends one step_done right after the robot finishes each step (never future steps). Add that row now.
+  function onUnityStepDone(d) {
+    if (!validDoneStep(d.step) || !Number.isInteger(d.done_count) || d.done_count < 1) return;
+    if (d.done_count <= doneShown.length) return;   // already shown (repeat or covered by a checkpoint)
+    if (doneShown.length >= 200) return;
+    $('done-area').hidden = false;
+    appendDone(d.step, true);
+  }
+
   function onUnityComplete(d) {
+    if (unity.completeSeen) return;
+    unity.completeSeen = true;
     sendToParent({ type: 'run_complete', trial_id: unity.pid, run_log: d.run_log });
     setLocked(true);
-    setStatus('The robot has finished. You can continue by clicking Next page below.');
+    setStatus(d.run_log && d.run_log.run_status === 'aborted'
+      ? 'The run was stopped. You can continue.' : 'The robot has finished. You can continue by clicking Next page below.');
   }
 
   function onUnityError(message) {
@@ -465,6 +673,7 @@
       metrics.param_change_count++;
       item.params[param.name] = sel.value;
       if (studyLog) studyLog.plan(buildResponse());
+      recordHistory();
       updateStatus();
       updateSubmit();
     });
@@ -498,9 +707,17 @@
       markFirstDrag();
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', JSON.stringify({ from: 'slot', index: index }));
+      dragKind = 'slot';
       setTimeout(function () { card.classList.add('dragging'); }, 0);
     });
-    card.addEventListener('dragend', function () { card.classList.remove('dragging'); });
+    card.addEventListener('dragend', function () { card.classList.remove('dragging'); clearDropMarks(); });
+  }
+
+  // Board mode: the gap where a dragged card / action will land is shown as a bar (class drop-before / drop-after)
+  function clearDropMarks() {
+    document.querySelectorAll('#timeline .drop-before, #timeline .drop-after, #timeline .over').forEach(function (el) {
+      el.classList.remove('drop-before', 'drop-after', 'over');
+    });
   }
 
   function makeRemoveBtn(index) {
@@ -603,7 +820,10 @@
   // 타임라인 빈 곳에 놓기: Toolbox 카드만 맨 뒤에 추가
   function onDropTimeline(e) {
     e.preventDefault();
+    clearDropMarks();
+    dragKind = null;
     var data = readDrag(e);
+    if (data && data.from === 'slot' && inputMode === 'board' && editable()) moveCard(data.index, slots.length);   // empty area below the cards = the end
     if (data && data.from === 'toolbox' && inputMode === 'dropdown') addCard(data.verb);
     if (data && data.from === 'verb' && inputMode === 'board') addVerbStep(data.id);
     if (data && data.from === 'tile' && inputMode === 'board') fillFromTile(data.id);
@@ -768,21 +988,29 @@
     return slots.map(function (item, i) { return { start: i, len: 1 }; });
   }
 
-  // 순서 변경: from에서 시작하는 카드(그룹)를 to에서 시작하는 카드 자리로 옮긴다 (to = -1 이면 맨 뒤)
-  function moveCard(from, to) {
-    var groups = boardGroups();
-    var gi = groups.findIndex(function (g) { return g.start === from; });
-    var ti = to === -1 ? groups.length - 1 : groups.findIndex(function (g) { return g.start === to; });
-    if (gi === -1 || ti === -1 || gi === ti) return;
-    var moving = slots.splice(groups[gi].start, groups[gi].len);
-    var target = groups[ti];
-    // 뒤로 옮기면 대상 카드 뒤에, 앞으로 옮기면 대상 카드 앞에 끼운다
-    var at = ti > gi ? target.start + target.len - moving.length : target.start;
-    Array.prototype.splice.apply(slots, [at, 0].concat(moving));
+  // 순서 변경: from의 카드를 빼서 insertion 자리(카드 사이 틈의 번호: 0 = 맨 앞, slots.length = 맨 뒤)에 끼운다.
+  // 화면에 표시된 틈과 정확히 같은 자리에 들어간다. 자리가 그대로면 아무것도 하지 않는다 (move_count도 세지 않음).
+  function moveCard(from, insertion) {
+    if (!editable() || from < 0 || from >= slots.length) return;
+    var at = insertion > from ? insertion - 1 : insertion;
+    if (at < 0) at = 0;
+    if (at > slots.length - 1) at = slots.length - 1;
+    if (at === from) return;
+    var moving = slots.splice(from, 1)[0];
+    slots.splice(at, 0, moving);
     metrics.move_count++;
     activeSlot = null;
     insertAfter = null;
     render();
+  }
+
+  // What is being dragged right now ('slot' | 'verb' | 'tile'). dataTransfer cannot be read during dragover.
+  var dragKind = null;
+
+  // Pointer in the upper half of a card = the gap before it, lower half = the gap after it
+  function dropHalf(slot, e) {
+    var r = slot.getBoundingClientRect();
+    return typeof e.clientY === 'number' && e.clientY > r.top + r.height / 2 ? 'after' : 'before';
   }
 
   function renderBoardTimeline(tl) {
@@ -793,16 +1021,27 @@
       slot.dataset.slot = g.start;
       slot.dataset.len = g.len;
       slot.appendChild(buildBoardCard(g, gi));
-      slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('over'); });
-      slot.addEventListener('dragleave', function () { slot.classList.remove('over'); });
+      slot.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        clearDropMarks();
+        // a picture fills the current blank (no gap); cards and actions show the gap they will land in
+        if (dragKind === 'tile') slot.classList.add('over');
+        else slot.classList.add(dropHalf(slot, e) === 'after' ? 'drop-after' : 'drop-before');
+      });
+      slot.addEventListener('dragleave', function (e) {
+        if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
+        slot.classList.remove('over', 'drop-before', 'drop-after');
+      });
       slot.addEventListener('drop', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        slot.classList.remove('over');
+        var at = g.start + (dropHalf(slot, e) === 'after' ? g.len : 0);
+        clearDropMarks();
+        dragKind = null;
         var data = readDrag(e);
         if (!editable() || !data) return;
-        if (data.from === 'slot') moveCard(data.index, g.start);
-        else if (data.from === 'verb') addVerbStep(data.id, g.start + g.len);
+        if (data.from === 'slot') moveCard(data.index, at);
+        else if (data.from === 'verb') addVerbStep(data.id, at);
         else if (data.from === 'tile') fillFromTile(data.id);
       });
       tl.appendChild(slot);
@@ -966,14 +1205,36 @@
     row.className = 'step-row' + (isItemComplete(item) ? '' : ' needs-action');
     var head = document.createElement('div');
     head.className = 'step-head';
+    var grip = document.createElement('span');
+    grip.className = 'step-grip';   // drag handle (the whole card stays draggable)
+    grip.setAttribute('aria-hidden', 'true');
+    grip.title = 'Drag to move';
+    head.appendChild(grip);
     var num = document.createElement('span');
     num.className = 'step-num';
     num.textContent = String(index + 1);   // 전체 계획에서의 단계 번호
     head.appendChild(num);
     var v = document.createElement('span');
     v.className = 'step-verb';
+    v.dataset.verb = verb.id;   // same color as the action chip and the "done so far" tag
     v.textContent = verb.label;
     head.appendChild(v);
+    // Up/Down: the simple alternative to dragging (disabled at the ends)
+    var moves = document.createElement('span');
+    moves.className = 'step-move';
+    [['move-up', '↑', 'Move step up', index - 1, index === 0],
+     ['move-down', '↓', 'Move step down', index + 2, index === slots.length - 1]].forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'move-btn ' + m[0];
+      b.textContent = m[1];
+      b.setAttribute('aria-label', m[2]);
+      b.title = m[2];
+      b.disabled = m[4];
+      b.addEventListener('click', function () { closePicker(); moveCard(index, m[3]); });
+      moves.appendChild(b);
+    });
+    head.appendChild(moves);
     var rm = makeRemoveBtn(index);
     rm.classList.add('step-remove');
     rm.setAttribute('aria-label', 'Remove step');
@@ -1021,7 +1282,7 @@
         ? (inUnity ? 'Click an object in the simulation for step ' : 'Tap a picture for step ') + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ')' + (inUnity ? '.' : ', or drag it onto a blank.')
         : insertAfter !== null
           ? 'The next action will be added after step ' + (insertAfter + 1) + '. Click + again to add at the end.'
-          : 'Add the next action above. Drag cards to change the order.';
+          : 'Add the next action above. Drag cards or use the arrows to change the order.';
     var grid = $('places-grid');
     grid.textContent = '';
     grid.hidden = inUnity;   // Unity에서 고르면 그림 타일은 숨긴다
@@ -1044,6 +1305,7 @@
         if (!editable()) { e.preventDefault(); return; }
         e.dataTransfer.effectAllowed = 'copy';
         e.dataTransfer.setData('text/plain', JSON.stringify({ from: 'tile', id: opt.id }));
+        dragKind = 'tile';
       });
       grid.appendChild(btn);
     });
@@ -1068,6 +1330,7 @@
         if (!editable()) { e.preventDefault(); return; }
         e.dataTransfer.effectAllowed = 'copy';
         e.dataTransfer.setData('text/plain', JSON.stringify({ from: 'verb', id: v.id }));
+        dragKind = 'verb';
       });
       bar.appendChild(b);
     });
@@ -1141,6 +1404,7 @@
 
   function render() {
     if (studyLog) studyLog.plan(buildResponse());
+    recordHistory();
     var tl = $('timeline');
     var scrollTop = tl.scrollTop, scrollLeft = tl.scrollLeft;
     tl.innerHTML = '';
@@ -1179,6 +1443,7 @@
     else if (inputMode === 'board') renderBoardGrid();
     popIndex = -1;
     updateSubmit();
+    updateHistoryButtons();
   }
 
   function buildGhost(i) {
@@ -1186,26 +1451,48 @@
     ghost.className = 'slot empty';
     var inner = document.createElement('div');
     inner.className = 'ghost';
+    // A quiet text hint, not a button: it only marks the end of the plan (drop target for "move to the end").
+    // Clicking it is not a dead end: it briefly highlights the action chips where steps are added.
     if (i === 0) {
       ghost.classList.add('start');
       inner.textContent = 'Choose an action above to start your plan';
     } else {
-      inner.textContent = '+';
+      inner.textContent = isFull() ? 'Step limit reached' : 'Next step: choose an action above';
     }
     ghost.appendChild(inner);
-    ghost.addEventListener('dragover', function (e) { e.preventDefault(); ghost.classList.add('over'); });
-    ghost.addEventListener('dragleave', function () { ghost.classList.remove('over'); });
+    ghost.addEventListener('click', pulseVerbBar);
+    ghost.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      clearDropMarks();
+      ghost.classList.add(dragKind === 'tile' ? 'over' : 'drop-before');
+    });
+    ghost.addEventListener('dragleave', function (e) {
+      if (e.relatedTarget && ghost.contains(e.relatedTarget)) return;
+      ghost.classList.remove('over', 'drop-before');
+    });
     ghost.addEventListener('drop', function (e) {
       e.preventDefault();
       e.stopPropagation();
-      ghost.classList.remove('over');
+      clearDropMarks();
+      dragKind = null;
       var data = readDrag(e);
       if (!editable() || !data) return;
-      if (data.from === 'slot') moveCard(data.index, -1);
-      else if (data.from === 'verb') addVerbStep(data.id);
+      if (data.from === 'slot') moveCard(data.index, slots.length);
+      else if (data.from === 'verb') addVerbStep(data.id, slots.length);
       else if (data.from === 'tile') fillFromTile(data.id);
     });
     return ghost;
+  }
+
+  var pulseTimer = null;
+  function pulseVerbBar() {
+    var bar = $('verb-bar');
+    if (!bar || !editable()) return;
+    bar.classList.remove('pulse');
+    void bar.offsetWidth;   // restart the animation on repeated clicks
+    bar.classList.add('pulse');
+    clearTimeout(pulseTimer);
+    pulseTimer = setTimeout(function () { bar.classList.remove('pulse'); }, 1200);
   }
 
   function isComplete() {
@@ -1227,6 +1514,7 @@
     fetch('config/config.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
   ]).then(function (res) {
     vocab = res[0];
+    allVerbs = vocab.verbs.slice();
     vocab.verbs = vocab.verbs.filter(function (v) { return v.enabled !== false; });   // "enabled": false 인 동사는 숨긴다
     config = res[1];
     if (config.requireComplete === undefined) config.requireComplete = true;
@@ -1250,11 +1538,30 @@
       $('places').hidden = false;
     }
 
-    $('submit-btn').addEventListener('click', submit);
+    $('submit-btn').addEventListener('click', openConfirm);
+    $('confirm-yes').addEventListener('click', confirmSubmit);
+    $('confirm-back').addEventListener('click', function () { closeConfirm(true); });
+    $('undo-btn').addEventListener('click', undo);
+    $('redo-btn').addEventListener('click', redo);
     $('picker-cancel').addEventListener('click', closePicker);
     document.addEventListener('keydown', function (e) {
+      if (confirmOpen) {
+        if (e.key === 'Escape') { e.preventDefault(); closeConfirm(true); }
+        else if (e.key === 'Tab') {   // keep focus inside the dialog
+          var a = $('confirm-back'), b = $('confirm-yes');
+          e.preventDefault();
+          (document.activeElement === a ? b : a).focus();
+        }
+        return;
+      }
       if (e.key === 'Escape' && picker) closePicker();
+      var k = String(e.key).toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (k === 'z' || k === 'y')) {
+        e.preventDefault();
+        if (k === 'y' || e.shiftKey) redo(); else undo();
+      }
     });
+    document.addEventListener('dragend', function () { dragKind = null; clearDropMarks(); });
     // 캡처 단계에서 세므로 Submit 클릭도 포함된다
     $('toolbox').addEventListener('click', countClick, true);
     $('timeline-area').addEventListener('click', countClick, true);
@@ -1274,7 +1581,8 @@
       $('panel').hidden = false;
     }
     studyLog = window.createStudyLog(sendToParent, function () {
-      return {trial_id: unity ? unity.pid : trial.trial_id, checkpoint_id: unity && unity.cp ? 'cp' + unity.cp.index : trial.checkpoint_id};
+      return {trial_id: unity ? unity.pid : trial.trial_id, checkpoint_id: unity && unity.cp ? 'cp' + unity.cp.index : trial.checkpoint_id,
+        qualtrics_response_id: new URLSearchParams(location.search).get('response_id') || ''};
     });
     window.studyLog = studyLog; // researcher-only console export: studyLog.download()
     if (metrics && !submitted) studyLog.begin(buildResponse());

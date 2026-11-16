@@ -175,6 +175,18 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .verb-chip:hover:not(:disabled) { background: #fff6d6; transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--ink); }
 .verb-chip:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--ink); }
 .verb-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Each action has one color everywhere: the "Add an action" chips match the tags in "The robot has done so far" (.done-row.verb-*) */
+.verb-chip[data-verb] { background: var(--chip-bg, var(--card)); color: var(--chip-fg, var(--ink)); }
+.verb-chip[data-verb]:hover:not(:disabled) { background: var(--chip-bg, #fff6d6); filter: brightness(0.94); }
+.verb-chip[data-verb=move_to], .step-verb[data-verb=move_to] { --chip-bg: #dfe6f6; --chip-fg: #2f4675; }
+.verb-chip[data-verb=grab], .step-verb[data-verb=grab] { --chip-bg: #f6e6c8; --chip-fg: #7a5313; }
+.verb-chip[data-verb=place], .step-verb[data-verb=place] { --chip-bg: #dcefd9; --chip-fg: #2f6430; }
+.verb-chip[data-verb=pour], .step-verb[data-verb=pour] { --chip-bg: #d6eeee; --chip-fg: #1f6363; }
+.verb-chip[data-verb=turn_on], .step-verb[data-verb=turn_on] { --chip-bg: #f6dcd6; --chip-fg: #8a3524; }
+.verb-chip[data-verb=fill], .step-verb[data-verb=fill] { --chip-bg: #dde9f3; --chip-fg: #245a7d; }
+/* plan cards: the action name is a colored tag in the same color */
+.step-verb[data-verb] { justify-self: start; flex: none; padding: 0 10px; border-radius: 999px; background: var(--chip-bg, var(--slot)); color: var(--chip-fg, var(--ink)); }
+.mode-board .step-verb[data-verb] { flex: none; line-height: 24px; margin-right: 8px; }
 .step-fields { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
 .step-verb { font-size: 12px; font-weight: 800; }
 .step-arrow { font-size: 12px; color: var(--ink-soft); }
@@ -205,9 +217,6 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .mode-board .board-card .step-fields { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
 .mode-board .board-card .slot-btn { width: 100%; }
 
-.mode-board .insert-btn { width: 22px; height: 22px; padding: 0; border: 2px solid var(--ink); border-radius: 50%; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; font-weight: 800; line-height: 1; cursor: pointer; }
-.mode-board .insert-btn:hover { background: #fff6d6; }
-.mode-board .insert-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .mode-board .board-card.insert-after { box-shadow: 6px 0 0 var(--accent), 3px 3px 0 var(--ink); }
 .mode-board .board-card .step-remove { margin-left: 0; }
 
@@ -218,12 +227,12 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 
 /* ---------- board 레이아웃 v3 (정보 위계: 장면 → 질문 → 동작 → 계획 → 제출) ----------
    왼쪽: Unity (픽셀아트 장면의 가로세로비를 유지한 채 높이를 최대한 크게).
-   오른쪽(위→아래): 체크포인트 안내, Add an action, (그림 타일), YOUR PLAN 제목, 계획 카드 목록(남는 높이 전부, 안에서만 스크롤), Submit.
+   오른쪽(위→아래): 체크포인트 안내, 로봇이 이미 한 단계(The robot has done so far, 읽기 전용), Add an action, (그림 타일), YOUR PLAN 제목, 계획 카드 목록(남는 높이 전부, 안에서만 스크롤), Submit.
    #timeline-area는 display: contents로 풀어 격자에 직접 놓는다. 장면 비율은 --unity-aspect (Unity가 ready 메시지의 scene_aspect로 알려 준다, 없으면 기본값). */
 #panel.mode-board { height: 100vh; min-height: 0; padding: 10px; gap: 0; overflow: hidden; }
 .mode-board #main { flex: 1; height: 100%; min-height: 0; align-items: stretch;
   grid-template-columns: minmax(0, 1fr) clamp(360px, 31vw, 420px);
-  grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr) auto;
   grid-template-areas: none; gap: 8px 14px; }
 .mode-board #timeline-area { display: contents; }
 .mode-board #timeline-area.locked > * { opacity: 0.5; }
@@ -232,15 +241,27 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .mode-board #unity-area, .mode-board #unity-area.has-frame { grid-area: 1 / 1 / -1 / 2; align-self: start; justify-self: center;
   aspect-ratio: var(--unity-aspect, 1.058); width: min(100%, calc((100vh - 20px) * var(--unity-aspect, 1.058))); height: auto; min-height: 0; border-radius: 12px; }
 
-/* 오른쪽: 위에서 아래로 */
-.mode-board #status-bar { grid-area: 1 / 2; padding: 10px 12px; font-size: 14px; line-height: 1.4; border-radius: 10px; }
-.mode-board #verb-bar { grid-area: 2 / 2; margin: 0; gap: 6px; }
-.mode-board #picker { grid-area: 3 / 2; margin: 0; }
-.mode-board #places { grid-area: 4 / 2; max-height: 26vh; overflow-y: auto; margin: 0; }
-.mode-board .area-head { grid-area: 5 / 2; align-self: end; margin: 4px 0 0; }
-.mode-board #timeline { grid-area: 6 / 2; min-height: 0; margin: 0; padding: 10px; overflow-y: auto; background: var(--panel); border-radius: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 6px; align-content: start; }
-.mode-board #submit-btn { grid-area: 7 / 2; padding: 11px; font-size: 15px; }
+/* 오른쪽: 위에서 아래로 (항상 마지막 열 -2 / -1) */
+.mode-board #status-bar { grid-area: 1 / -2; padding: 10px 12px; font-size: 14px; line-height: 1.4; border-radius: 10px; }
+.mode-board #done-area { grid-area: 2 / -2; }
+.mode-board #verb-bar { grid-area: 3 / -2; margin: 0; gap: 6px; }
+.mode-board #picker { grid-area: 4 / -2; margin: 0; }
+.mode-board #places { grid-area: 5 / -2; max-height: 26vh; overflow-y: auto; margin: 0; }
+.mode-board .area-head { grid-area: 6 / -2; align-self: end; margin: 4px 0 0; }
+.mode-board #timeline { grid-area: 7 / -2; min-height: 0; margin: 0; padding: 10px; overflow-y: auto; background: var(--panel); border-radius: 12px;
+  grid-template-columns: minmax(0, 1fr); gap: 6px; align-content: start; }
+.mode-board #submit-btn { grid-area: 8 / -2; padding: 11px; font-size: 15px; }
+
+/* 넓은 화면: "The robot has done so far"를 장면과 오른쪽 열 사이의 빈 공간에 별도 열로 둔다.
+   그래서 YOUR PLAN 칸의 높이를 줄이지 않는다. 장면 열은 장면 본래 너비까지만, 가운데 열은 최소 200px, 나머지는 가운데 열이 쓴다.
+   done 칸이 숨겨져 있으면(:has) 예전처럼 두 열. */
+@media (min-width: 1100px) {
+  .mode-board #main { grid-template-columns: minmax(0, calc((100vh - 20px) * var(--unity-aspect, 1.058))) minmax(200px, 1fr) clamp(360px, 31vw, 420px); }
+  .mode-board #main:has(> #done-area[hidden]) { grid-template-columns: minmax(0, 1fr) clamp(360px, 31vw, 420px); }
+  .mode-board #done-area { grid-area: 1 / 2 / -1 / 3; align-self: start; max-height: 100%; min-height: 0; box-sizing: border-box;
+    display: flex; flex-direction: column; }
+  .mode-board #done-list { flex: 1 1 auto; min-height: 0; max-height: none; }
+}
 
 .mode-board .verb-chip { padding: 5px 12px; font-size: 13px; box-shadow: 1px 1px 0 var(--ink); }
 .mode-board #places-prompt { margin-bottom: 4px; font-size: 13px; }
@@ -250,14 +271,14 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .mode-board .slot.empty { min-height: 0; }
 .mode-board .slot.empty .ghost, .mode-board .slot.empty.start .ghost { min-height: 38px; font-size: 14px; border-radius: 8px; }
 
-/* 카드: [번호 원 26px][동작 58px][대상 칸들][X 22px]. 번호와 X는 모든 카드에서 같은 크기·같은 자리 */
+/* 카드: [손잡이 10px][번호 원 26px][동작 58px][대상 칸들][위/아래 46px][X 22px]. 번호와 X는 모든 카드에서 같은 크기·같은 자리 */
 .mode-board .board-card { padding: 5px 8px; border-radius: 8px; box-shadow: 1px 1px 0 var(--ink); }
-.mode-board .step-row { display: grid; grid-template-columns: 26px 58px minmax(0, 1fr) 22px; align-items: start; gap: 4px 6px; }
+.mode-board .step-row { display: grid; grid-template-columns: 10px 26px 58px minmax(0, 1fr) 46px 22px; align-items: start; gap: 4px 6px; }
 .mode-board .step-head { display: contents; }
-.mode-board .step-num { grid-column: 1; grid-row: 1; box-sizing: border-box; width: 26px; height: 26px; min-width: 0; margin: 0; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; }
-.mode-board .step-verb { grid-column: 2; grid-row: 1; align-self: center; font-size: 13px; line-height: 26px; white-space: nowrap; }
-.mode-board .step-fields, .mode-board .board-card .step-fields { grid-column: 3; grid-row: 1; align-self: center; min-width: 0; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 4px 6px; }
-.mode-board .step-remove, .mode-board .board-card .step-remove { grid-column: 4; grid-row: 1; justify-self: end; align-self: start; width: 22px; height: 22px; margin: 2px 0 0; font-size: 12px; }
+.mode-board .step-num { grid-column: 2; grid-row: 1; box-sizing: border-box; width: 26px; height: 26px; min-width: 0; margin: 0; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; }
+.mode-board .step-verb { grid-column: 3; grid-row: 1; align-self: center; font-size: 13px; line-height: 26px; white-space: nowrap; }
+.mode-board .step-fields, .mode-board .board-card .step-fields { grid-column: 4; grid-row: 1; align-self: center; min-width: 0; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 4px 6px; }
+.mode-board .step-remove, .mode-board .board-card .step-remove { grid-column: 6; grid-row: 1; justify-self: end; align-self: start; width: 22px; height: 22px; margin: 2px 0 0; font-size: 12px; }
 .mode-board .step-link { font-size: 11px; }
 .mode-board .slot-btn, .mode-board .board-card .slot-btn { white-space: nowrap; width: auto; max-width: 100%; padding: 2px 8px; font-size: 13px; border-radius: 6px; }
 .mode-board .slot-btn .step-img { width: 20px; height: 20px; }
@@ -273,4 +294,95 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
   .mode-board #timeline { max-height: 55vh; margin: 0 0 8px; }
   .mode-board .area-head { margin: 8px 0 6px; }
   .mode-board #verb-bar { margin-bottom: 8px; }
+}
+
+/* ---------- 교수님 피드백 1-5 (2026-11-16) ---------- */
+
+/* 1. The robot has done so far: read-only vertical timeline (no buttons, not draggable) so it never looks like a plan card.
+   Each finished step is a dot on a rail: number, colored action tag, then the item (picture + name). The newest step is highlighted
+   and new rows slide in as the robot finishes them (Unity step_done). */
+#done-area { --rail: #cfc7b3; padding: 10px 12px 10px; border: 2px solid var(--ink); border-radius: 12px; background: var(--panel); box-shadow: 2px 2px 0 var(--ink); }
+.done-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 8px; }
+#done-area h2 { margin: 0; font-size: 11px; line-height: 1.3; letter-spacing: 0.08em; color: var(--ink-soft); }
+#done-count { flex: none; padding: 1px 7px; border-radius: 9px; background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 700; }
+#done-count:empty { display: none; }
+#done-list { list-style: none; margin: 0; padding: 0 2px 0 0; max-height: 22vh; overflow-y: auto; font-size: 13px; line-height: 1.3; color: var(--ink); }
+.done-row { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 9px; row-gap: 3px;
+  padding: 0 0 12px; border: 0; }
+.done-row:last-child { padding-bottom: 2px; }
+/* rail: line from this dot down to the next one */
+.done-row:not(:last-child)::before { content: ""; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: var(--rail); }
+.done-num { grid-column: 1; grid-row: 1 / 3; align-self: start; box-sizing: border-box; width: 24px; height: 24px; border: 2px solid var(--ink); border-radius: 50%;
+  background: var(--card); color: var(--ink); font-size: 11px; font-weight: 800; line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.done-verb { grid-column: 2; grid-row: 1; justify-self: start; padding: 1px 8px; border-radius: 6px; background: var(--slot); color: var(--ink);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.02em; white-space: nowrap; }
+.done-what { grid-column: 2; grid-row: 2; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; font-weight: 600; overflow-wrap: anywhere; }
+.done-item { display: inline-flex; align-items: center; gap: 4px; }
+.done-join { color: var(--ink-soft); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+/* action colors (soft, readable; same hue family per action every time) */
+.done-row.verb-move_to .done-verb { background: #dfe6f6; color: #2f4675; }
+.done-row.verb-grab .done-verb { background: #f6e6c8; color: #7a5313; }
+.done-row.verb-place .done-verb { background: #dcefd9; color: #2f6430; }
+.done-row.verb-pour .done-verb { background: #d6eeee; color: #1f6363; }
+.done-row.verb-turn_on .done-verb { background: #f6dcd6; color: #8a3524; }
+.done-row.verb-fill .done-verb { background: #dde9f3; color: #245a7d; }
+/* newest step: filled dot + soft highlight */
+.done-row.latest .done-num { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 0 3px rgba(74, 90, 138, 0.18); }
+.done-row.latest .done-what { color: var(--ink); }
+.done-row:not(.latest) .done-what { color: #45434f; }
+.done-row.done-new { animation: done-in 0.45s ease-out both; }
+.done-row.done-new.latest .done-num { animation: done-pop 0.6s ease-out; }
+@keyframes done-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes done-pop { 0% { transform: scale(0.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .done-row.done-new, .done-row.done-new.latest .done-num { animation: none; } }
+.done-empty { color: var(--ink-soft); font-style: italic; }
+
+/* 2. Reordering: grip, up/down buttons, and a bar in the gap where the card will land */
+.mode-board #timeline > .slot { position: relative; }
+.mode-board .step-grip { grid-column: 1; grid-row: 1; align-self: center; width: 10px; height: 18px; cursor: grab; opacity: 0.55;
+  background-image: radial-gradient(circle, var(--ink) 1.3px, transparent 1.6px); background-size: 5px 6px; background-position: 0 0; }
+.mode-board .board-card:hover .step-grip { opacity: 0.9; }
+.mode-board .board-card { cursor: grab; }
+.mode-board .board-card:active { cursor: grabbing; }
+.mode-board .step-move { grid-column: 5; grid-row: 1; align-self: start; display: flex; gap: 2px; margin-top: 2px; }
+.move-btn { width: 22px; height: 22px; padding: 0; border: 1.5px solid var(--ink-soft); border-radius: 6px; background: var(--card); color: var(--ink); font: inherit; font-size: 13px; font-weight: 800; line-height: 1; cursor: pointer; }
+.move-btn:hover:not(:disabled) { border-color: var(--ink); background: #fff6d6; }
+.move-btn:disabled { opacity: 0.25; cursor: default; }
+.mode-board .slot.drop-before::before, .mode-board .slot.drop-after::after { content: ""; position: absolute; left: 4px; right: 4px; height: 4px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px var(--panel); pointer-events: none; z-index: 2; }
+.mode-board .slot.drop-before::before { top: -5px; }
+.mode-board .slot.drop-after::after { bottom: -5px; }
+/* the old "whole card highlighted" look only stays for pictures dropped on a card */
+.mode-board .slot.drop-before .board-card, .mode-board .slot.drop-after .board-card { transform: none; }
+
+/* 3. End-of-plan hint: quiet text, not a button */
+.mode-board .slot.empty .ghost, .mode-board .slot.empty.start .ghost { justify-content: flex-start; min-height: 30px; padding: 4px 8px; border: 0; background: transparent; color: var(--ink-soft); font-size: 12px; font-weight: 600; font-style: italic; opacity: 1; cursor: default; }
+.mode-board .slot.empty.over .ghost { background: #fff6d6; }
+#verb-bar.pulse .verb-chip:not(:disabled) { animation: chip-pulse 0.4s ease-in-out 3; }
+@keyframes chip-pulse { 0%, 100% { box-shadow: 1px 1px 0 var(--ink); } 50% { box-shadow: 0 0 0 4px rgba(74, 90, 138, 0.45); background: #eef1fb; } }
+
+/* 5. Undo / Redo in the YOUR PLAN head */
+.area-head { gap: 8px; align-items: center; }
+.history-btns { display: inline-flex; gap: 4px; margin-left: auto; }
+.history-btns button { padding: 2px 8px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--card); color: var(--ink); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.history-btns button:hover:not(:disabled) { background: #fff6d6; }
+.history-btns button:disabled { opacity: 0.35; cursor: default; }
+.mode-board .area-head h2 { margin-right: auto; }
+.mode-board .area-head .history-btns { margin-left: 0; }
+
+/* 4. Submit confirmation dialog (in-page; window.confirm is blocked inside the Qualtrics iframe) */
+#confirm { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 42, 51, 0.45); }
+.confirm-box { width: min(380px, 100%); padding: 18px 20px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); }
+.confirm-box h3 { margin: 0 0 8px; font-size: 17px; }
+.confirm-box p { margin: 0 0 6px; font-size: 14px; line-height: 1.4; }
+#confirm-count { color: var(--ink-soft); }
+.confirm-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.confirm-actions button { padding: 8px 14px; border: 2px solid var(--ink); border-radius: 8px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+#confirm-back { background: var(--card); color: var(--ink); }
+#confirm-yes { background: var(--accent); color: #fff; }
+.confirm-actions button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { #verb-bar.pulse .verb-chip { animation: none; outline: 2px solid var(--accent); } }
+@media (max-width: 860px) {
+  .mode-board #done-area { margin: 0; }
+  #done-list { max-height: 30vh; }
 }

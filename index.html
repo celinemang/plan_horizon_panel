@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Plan Panel</title>
-  <link rel="stylesheet" href="css/style.css?v=30">
+  <link rel="stylesheet" href="css/style.css?v=36">
 </head>
 <body>
   <div id="panel" hidden>
@@ -15,10 +15,18 @@
     <main id="main">
       <section id="unity-area">Unity iframe placeholder</section>
       <div id="status-bar" hidden></div>
+      <section id="done-area" hidden aria-labelledby="done-title">
+        <div class="done-head"><h2 id="done-title">The robot has done so far</h2><span id="done-count"></span></div>
+        <ol id="done-list"></ol>
+      </section>
       <section id="timeline-area">
         <div class="area-head">
           <h2 id="timeline-title">Task Timeline</h2>
           <span id="limit-note"></span>
+          <span class="history-btns">
+            <button id="undo-btn" type="button" disabled aria-keyshortcuts="Control+Z Meta+Z" title="Undo (Ctrl+Z)">&#8630; Undo</button>
+            <button id="redo-btn" type="button" disabled aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" title="Redo (Ctrl+Shift+Z)">Redo &#8631;</button>
+          </span>
         </div>
         <section id="picker" hidden>
           <div class="picker-head">
@@ -36,8 +44,19 @@
       </section>
     </main>
   </div>
+  <div id="confirm" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text confirm-count">
+    <div class="confirm-box">
+      <h3 id="confirm-title">Submit this plan?</h3>
+      <p id="confirm-text">You cannot change it afterwards.</p>
+      <p id="confirm-count"></p>
+      <div class="confirm-actions">
+        <button id="confirm-back" type="button">Go back and edit</button>
+        <button id="confirm-yes" type="button">Yes, submit</button>
+      </div>
+    </div>
+  </div>
   <p id="idle-note" hidden>Waiting for the study to start. This panel is meant to be opened inside the survey (or through mock_parent.html when testing).</p>
-  <script src="js/study-log.js?v=1"></script>
-  <script src="js/app.js?v=32"></script>
+  <script src="js/study-log.js?v=2"></script>
+  <script src="js/app.js?v=37"></script>
 </body>
 </html>
