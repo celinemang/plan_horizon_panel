@@ -183,10 +183,10 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .verb-chip[data-verb=place], .step-verb[data-verb=place] { --chip-bg: #dcefd9; --chip-fg: #2f6430; }
 .verb-chip[data-verb=pour], .step-verb[data-verb=pour] { --chip-bg: #d6eeee; --chip-fg: #1f6363; }
 .verb-chip[data-verb=turn_on], .step-verb[data-verb=turn_on] { --chip-bg: #f6dcd6; --chip-fg: #8a3524; }
-.verb-chip[data-verb=fill], .step-verb[data-verb=fill] { --chip-bg: #dde9f3; --chip-fg: #245a7d; }
+.verb-chip[data-verb=fill], .step-verb[data-verb=fill] { --chip-bg: #e9e0f5; --chip-fg: #5a3d8c; }   /* lavender: clearly different from Pour (teal) and Move to (blue) */
 /* plan cards: the action name is a colored tag in the same color */
 .step-verb[data-verb] { justify-self: start; flex: none; padding: 0 10px; border-radius: 999px; background: var(--chip-bg, var(--slot)); color: var(--chip-fg, var(--ink)); }
-.mode-board .step-verb[data-verb] { flex: none; line-height: 24px; margin-right: 8px; }
+.mode-board .step-row .step-verb[data-verb] { flex: none; justify-self: stretch; box-sizing: border-box; padding: 0 6px; line-height: 24px; text-align: center; white-space: nowrap; }   /* fills the 80px verb column: same width on every card, never overlaps the item */
 .step-fields { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
 .step-verb { font-size: 12px; font-weight: 800; }
 .step-arrow { font-size: 12px; color: var(--ink-soft); }
@@ -250,6 +250,11 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .mode-board .area-head { grid-area: 6 / -2; align-self: end; margin: 4px 0 0; }
 .mode-board #timeline { grid-area: 7 / -2; min-height: 0; margin: 0; padding: 10px; overflow-y: auto; background: var(--panel); border-radius: 12px;
   grid-template-columns: minmax(0, 1fr); gap: 6px; align-content: start; }
+.mode-board #plan-box { grid-area: 7 / -2; min-height: 0; display: flex; flex-direction: column; border: 2px dashed var(--ink-soft); border-radius: 12px; background: var(--panel); overflow: hidden; }
+.mode-board #plan-box #timeline { flex: 0 1 auto; min-height: 0; margin: 0; padding: 10px 10px 4px; border: 0; border-radius: 0; background: transparent; overflow-y: auto; }
+.mode-board #plan-box #verb-bar { flex: none; margin: 0; padding: 6px 10px 10px; gap: 6px; }
+.mode-board #plan-box .slot.empty.end, .mode-board #plan-box .slot.empty.end .ghost { min-height: 10px; border: 0; padding: 0; }
+.mode-board #plan-box .slot.empty.end.over .ghost, .mode-board #plan-box .slot.empty.end.drop-before .ghost { min-height: 24px; border: 2px dashed var(--accent); }
 .mode-board #submit-btn { grid-area: 8 / -2; padding: 11px; font-size: 15px; }
 
 /* 넓은 화면: "The robot has done so far"를 장면과 오른쪽 열 사이의 빈 공간에 별도 열로 둔다.
@@ -273,7 +278,7 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 
 /* 카드: [손잡이 10px][번호 원 26px][동작 58px][대상 칸들][위/아래 46px][X 22px]. 번호와 X는 모든 카드에서 같은 크기·같은 자리 */
 .mode-board .board-card { padding: 5px 8px; border-radius: 8px; box-shadow: 1px 1px 0 var(--ink); }
-.mode-board .step-row { display: grid; grid-template-columns: 10px 26px 58px minmax(0, 1fr) 46px 22px; align-items: start; gap: 4px 6px; }
+.mode-board .step-row { display: grid; grid-template-columns: 10px 26px 80px minmax(0, 1fr) 46px 22px; align-items: start; gap: 4px 6px; }
 .mode-board .step-head { display: contents; }
 .mode-board .step-num { grid-column: 2; grid-row: 1; box-sizing: border-box; width: 26px; height: 26px; min-width: 0; margin: 0; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; font-variant-numeric: tabular-nums; }
 .mode-board .step-verb { grid-column: 3; grid-row: 1; align-self: center; font-size: 13px; line-height: 26px; white-space: nowrap; }
@@ -325,7 +330,7 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .done-row.verb-place .done-verb { background: #dcefd9; color: #2f6430; }
 .done-row.verb-pour .done-verb { background: #d6eeee; color: #1f6363; }
 .done-row.verb-turn_on .done-verb { background: #f6dcd6; color: #8a3524; }
-.done-row.verb-fill .done-verb { background: #dde9f3; color: #245a7d; }
+.done-row.verb-fill .done-verb { background: #e9e0f5; color: #5a3d8c; }
 /* newest step: filled dot + soft highlight */
 .done-row.latest .done-num { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 0 3px rgba(74, 90, 138, 0.18); }
 .done-row.latest .done-what { color: var(--ink); }
@@ -386,3 +391,14 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
   .mode-board #done-area { margin: 0; }
   #done-list { max-height: 30vh; }
 }
+
+/* "Can't find it in the scene? Choose here:" (pickInUnity): same row in every variant, small dashed buttons */
+#offscene { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 0; }
+#offscene[hidden] { display: none; }
+.offscene-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.offscene-list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.offscene-tile { padding: 3px 10px; border: 2px dashed var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.offscene-tile:hover:not(:disabled) { background: #fff6d6; }
+.offscene-tile:disabled { opacity: 0.4; cursor: not-allowed; }
+/* rejection / guidance notes stay until the next action: make them easy to see */
+#places-prompt.pick-warn { padding: 6px 9px; border-radius: 8px; background: #fbe3df; }

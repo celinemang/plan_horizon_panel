@@ -1,6 +1,7 @@
 (function () {
   'use strict';
 
+  var tutorialMode = new URLSearchParams(location.search).get('phase') === 'tutorial';
   var PLACEHOLDER = 'Select...';
   var MODES = ['board', 'tiles', 'places', 'dropdown'];
 
@@ -173,6 +174,7 @@
 
   // targetOrigin은 config에서만 읽는다. "*"는 devMode에서만 허용.
   function sendToParent(msg) {
+    if (tutorialMode) msg.phase = 'tutorial';
     var target = config.targetOrigin;
     if (!target || (target === '*' && !config.devMode)) {
       console.error('postMessage not sent: invalid targetOrigin');
@@ -235,6 +237,7 @@
 
   function submit() {
     if (!editable()) return;
+    if (tutorialMode && (!metrics.move_count || !metrics.delete_count || !metrics.unity_pick_count)) { setStatus('Practice clicking a scene target, moving a card, and deleting an extra card before submitting.', true); return; }
     var submittedUtc = new Date().toISOString();
     submitted = true;
     metrics.total_ms = Math.round(performance.now() - t0);
@@ -347,9 +350,9 @@
     var el = $('places-prompt');
     el.textContent = text;
     el.classList.add('pick-warn');
-    clearTimeout(pickNoteTimer);
-    pickNoteTimer = setTimeout(function () { el.classList.remove('pick-warn'); render(); }, 1800);
+    clearTimeout(pickNoteTimer);   // the note stays until the participant's next action (clearPickNote), so it is not missed
   }
+  function clearPickNote() { $('places-prompt').classList.remove('pick-warn'); }
   // Unity can report ONE physical click several times within a few milliseconds (several updates share one input snapshot).
   // The first counts, the repeats are dropped: otherwise the repeats hit "no blank selected" and show a false warning.
   var lastPick = { id: '', t: 0 };
@@ -364,8 +367,10 @@
     var item = boardItems().filter(function (o) { return o.id === key; })[0];
     if (!item) { outcome('unknown_item'); return; }   // 어휘에 없는 물건은 무시
     var target = currentTarget();
-    if (!target) { outcome('no_target'); metrics.unity_pick_rejected++; pickNote('Choose an action above first, then click ' + item.label + ' in the simulation.'); return; }
+    if (!target) { outcome('no_target'); metrics.unity_pick_rejected++; pickNote('Choose an action below first, then click ' + item.label + ' in the simulation.'); return; }
     if (fillSlot(target, key)) { outcome('accepted'); metrics.unity_pick_count++; markFirstDrag(); return; }
+    var hint = clickHint(key, target);
+    if (hint) { outcome('incompatible_item'); metrics.unity_pick_rejected++; pickNote(hint); return; }
     outcome('incompatible_item');
     metrics.unity_pick_rejected++;
     pickNote(item.label + ' does not fit step ' + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ').');
@@ -578,6 +583,7 @@
     url.searchParams.set('variant', variant);
     url.searchParams.set('pid', pid);
     url.searchParams.set('host', location.origin);
+    if (tutorialMode) url.searchParams.set('phase', 'tutorial');
     if (/^\d+$/.test(q.get('layout') || '')) url.searchParams.set('layout', q.get('layout'));
 
     var frame = document.createElement('iframe');
@@ -1132,6 +1138,7 @@
 
   function addVerbStep(verbId, at) {
     if (!editable() || isFull() || !verbsById[verbId]) return;
+    clearPickNote();
     markFirstDrag();
     if (at === undefined && insertAfter !== null) {
       at = insertAfter + 1;
@@ -1142,12 +1149,27 @@
     activeSlot = { index: at, param: firstEmpty(at) };
     popIndex = at;
     render();
+    revealStep(at);
   }
 
-  function fillSlot(target, key) {
+  // Scroll the plan list (only the list, never the page) so card i is fully visible above the action chips.
+  function revealStep(i) {
+    var tl = $('timeline'), row = tl.querySelectorAll('.step-row')[i];
+    if (!row) return;
+    var top = row.getBoundingClientRect().top - tl.getBoundingClientRect().top + tl.scrollTop;
+    var bottom = top + row.offsetHeight;
+    if (bottom > tl.scrollTop + tl.clientHeight) tl.scrollTop = bottom - tl.clientHeight + 8;
+    else if (top < tl.scrollTop) tl.scrollTop = Math.max(0, top - 8);
+  }
+
+  function fillSlot(target, key, alias) {
     if (!editable() || !accepts(target, key)) return false;
     var item = slots[target.index];
     item.params[target.param] = conceptIdFor(key, paramOf(target.index, target.param));
+    // alias = the word the participant picked (e.g. "water"); the stored id stays the real one (pot), so scoring is unchanged
+    if (item.alias) delete item.alias[target.param];
+    if (alias) { item.alias = item.alias || {}; item.alias[target.param] = alias; }
+    clearPickNote();
     metrics.param_change_count++;
     // 첫 대상이 바뀌어 기존 두 번째 대상이 규칙에 맞지 않게 되면 비운다
     verbsById[item.verb].params.forEach(function (p) {
@@ -1161,6 +1183,72 @@
 
   function fillFromTile(key) { fillSlot(currentTarget(), key); }
 
+  // ---------- "Can't find it?" row (pickInUnity mode) ----------
+  // vocab.offScene items can also be picked from a small row of buttons. The row is the SAME in every variant and at every
+  // checkpoint, so it carries no information about the answer. vocab.aliases maps a word (e.g. "water") to a real id (pot)
+  // for some blanks only (verbs + param); the card then reads "Pot (water)" and the response still says pot.
+  function aliasFor(key) { return (vocab.aliases && vocab.aliases[key]) || null; }
+  function aliasFits(target, a) {
+    return !!(target && a.verbs.indexOf(slots[target.index].verb) !== -1 && (!a.param || a.param === target.param));
+  }
+  function offSceneAccepts(target, key) {
+    var a = aliasFor(key);
+    return a ? aliasFits(target, a) && accepts(target, a.id) : accepts(target, key);
+  }
+  function offSceneLabel(key) { var a = aliasFor(key); return a ? a.label : conceptLabel(key); }
+  function aliasSuffix(item, paramName, val) {
+    var k = item.alias && item.alias[paramName], a = k && aliasFor(k);
+    return a && val && conceptKey(a.id) === conceptKey(val) ? ' (' + a.label.toLowerCase() + ')' : '';
+  }
+  // Clicking e.g. the sink while a Pour object blank is active: explain how to say "water" instead of a bare rejection
+  function clickHint(key, target) {
+    var aliases = vocab.aliases || {};
+    for (var k in aliases) {
+      var a = aliases[k];
+      if ((a.hintWhenClicked || []).indexOf(key) !== -1 && aliasFits(target, a) && a.hint) return a.hint;
+    }
+    return null;
+  }
+  function pickOffScene(key) {
+    var target = currentTarget(), a = aliasFor(key), id = a ? a.id : key;
+    function log(result) { if (studyLog) studyLog.record('item_pick_result', { id: id, result: result, source: 'tile', alias: a ? key : null }); }
+    if (studyLog) studyLog.record('item_pick_attempt', { id: key, editable: editable(), target: target, source: 'tile' });
+    if (!editable() || confirmOpen) { log('not_editable'); return; }
+    if (!target) { log('no_target'); pickNote('Choose an action below first, then pick ' + offSceneLabel(key) + '.'); return; }
+    if (offSceneAccepts(target, key) && fillSlot(target, id, a ? key : null)) { log('accepted'); markFirstDrag(); return; }
+    log('incompatible_item');
+    pickNote(offSceneLabel(key) + ' does not fit step ' + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ').');
+  }
+  function renderOffScene(target) {
+    var ids = vocab.offScene || [];
+    var row = $('offscene');
+    if (!row) {
+      row = document.createElement('div');
+      row.id = 'offscene';
+      var cap = document.createElement('span');
+      cap.className = 'offscene-label';
+      cap.textContent = "Can't find it in the scene? Choose here:";
+      row.appendChild(cap);
+      var list = document.createElement('span');
+      list.className = 'offscene-list';
+      row.appendChild(list);
+      $('places').appendChild(row);
+    }
+    row.hidden = !pickInUnity() || !ids.length;
+    var box = row.querySelector('.offscene-list');
+    box.textContent = '';
+    ids.forEach(function (key) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'offscene-tile';
+      b.dataset.id = key;
+      b.textContent = offSceneLabel(key);
+      b.disabled = !editable() || !offSceneAccepts(target, key);
+      b.addEventListener('click', function () { pickOffScene(key); });
+      box.appendChild(b);
+    });
+  }
+
   function buildSlotButton(index, param) {
     var item = slots[index];
     var val = item.params[param.name];
@@ -1172,7 +1260,7 @@
     if (val) {
       // 계획 카드에는 이름만 표시한다 (그림은 선택기/타일에만)
       var nm = document.createElement('span');
-      nm.textContent = labelFor(val);
+      nm.textContent = labelFor(val) + aliasSuffix(item, param.name, val);
       btn.appendChild(nm);
       btn.title = 'Click to change';
     } else {
@@ -1277,16 +1365,17 @@
     var where = inUnity ? 'click an object in the simulation' : 'tap a picture';
     if ($('places-prompt').classList.contains('pick-warn')) { /* 잠깐 경고를 보여 주는 중 */ }
     else $('places-prompt').textContent = !slots.length
-      ? 'First choose an action above, then ' + where + ' to fill it in.'
+      ? 'First choose an action below, then ' + where + ' to fill it in.'
       : target
         ? (inUnity ? 'Click an object in the simulation for step ' : 'Tap a picture for step ') + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ')' + (inUnity ? '.' : ', or drag it onto a blank.')
         : insertAfter !== null
           ? 'The next action will be added after step ' + (insertAfter + 1) + '. Click + again to add at the end.'
-          : 'Add the next action above. Drag cards or use the arrows to change the order.';
+          : 'Drag cards or use the arrows to change the order.';
     var grid = $('places-grid');
     grid.textContent = '';
     grid.hidden = inUnity;   // Unity에서 고르면 그림 타일은 숨긴다
     document.querySelectorAll('#verb-bar .verb-chip').forEach(function (c) { c.disabled = !editable() || isFull(); });
+    renderOffScene(target);
     if (inUnity) return;
     boardItems().forEach(function (opt) {
       var btn = buildTile(opt, !!counts[opt.id]);
@@ -1316,7 +1405,7 @@
     bar.id = 'verb-bar';
     var cap = document.createElement('span');
     cap.className = 'verb-bar-label';
-    cap.textContent = 'Add an action:';
+    cap.textContent = '+ Add step:';
     bar.appendChild(cap);
     vocab.verbs.forEach(function (v) {
       var b = document.createElement('button');
@@ -1334,7 +1423,13 @@
       });
       bar.appendChild(b);
     });
-    $('timeline-area').insertBefore(bar, $('timeline'));
+    // The chips live INSIDE the plan box, right under the last card (where a new card appears).
+    // #plan-box = dashed box: the card list (#timeline, scrolls) + the chips (always visible at the bottom when the list is long).
+    var box = document.createElement('div');
+    box.id = 'plan-box';
+    $('timeline-area').insertBefore(box, $('timeline'));
+    box.appendChild($('timeline'));
+    box.appendChild(bar);
   }
 
   // ---------- 화면: places 모드 (이미지 타일 그리드) ----------
@@ -1455,9 +1550,11 @@
     // Clicking it is not a dead end: it briefly highlights the action chips where steps are added.
     if (i === 0) {
       ghost.classList.add('start');
-      inner.textContent = 'Choose an action above to start your plan';
+      inner.textContent = 'Choose an action below to start your plan';
     } else {
-      inner.textContent = isFull() ? 'Step limit reached' : 'Next step: choose an action above';
+      // The chips are right below, so the end marker has no text: it is only a thin drop target (move to the end).
+      inner.textContent = isFull() ? 'Step limit reached' : '';
+      if (!isFull()) ghost.classList.add('end');
     }
     ghost.appendChild(inner);
     ghost.addEventListener('click', pulseVerbBar);
@@ -1510,7 +1607,7 @@
   }
 
   Promise.all([
-    fetch('config/vocab.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }),
+    fetch(tutorialMode ? 'config/tutorial_vocab.json' : 'config/vocab.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }),
     fetch('config/config.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
   ]).then(function (res) {
     vocab = res[0];
@@ -1591,4 +1688,19 @@
     // 시작 조건(Unity 파라미터 또는 부모의 checkpoint)을 못 받으면 빈 화면 대신 안내를 보여 준다
     setTimeout(function () { if ($('panel').hidden) $('idle-note').hidden = false; }, 1500);
   });
+  if (tutorialMode) {
+    var guide = document.createElement('div');
+    guide.style.cssText = 'padding:14px;background:#fff4cf;color:#222;font:16px system-ui;border-bottom:2px solid #c99a26;';
+    document.body.insertBefore(guide, document.body.firstChild);
+    setInterval(function () {
+      if (!metrics) { guide.textContent = 'Tutorial: loading the parcel scene. Use the same action cards as the main study.'; return; }
+      if (unity && unity.completeSeen) { guide.textContent = 'Tutorial complete. You practiced the same action cards, scene clicks, order controls, deletion and Submit dialog used in the study.'; return; }
+      if (submitted) { guide.textContent = 'Prediction submitted. Watch the robot. This practice is not graded.'; return; }
+      var hint = !metrics.unity_pick_count ? 'Choose a card field, then click a target in the scene.' : slots.length < 2 ? 'Add Move to and Grab cards, then click the shelf for Move to and the parcel for Grab.' :
+        metrics.move_count === 0 ? 'Drag a card to another position in your plan. You can also use the arrow controls.' :
+        metrics.delete_count === 0 ? 'Add an extra card, then remove it with its delete control.' :
+        'Now complete your prediction and click Submit. Use the confirmation dialog just as in the main study.';
+      guide.textContent = 'Tutorial — ' + hint + (unity && unity.drone_count > 0 ? ' Drones mark upcoming destinations; ×N groups repeated visits.' : ' Your condition has no drones.');
+    }, 250);
+  }
 })();
