@@ -139,6 +139,7 @@
       layer.appendChild(button);
     });
     startCheckpoint({trial_id:'plant-practice', checkpoint_id:'practice', entities:{}});
+    renderDone([]);
     setStatus('Practice 1 of 2: move the plant to the brown table. Build your plan and submit it.');
   }
 
