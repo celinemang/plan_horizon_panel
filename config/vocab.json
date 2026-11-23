@@ -10,7 +10,10 @@
           "prompt": "Where does the robot go?",
           "hint": "Where...",
           "pools": [
-            "locations"
+            "locations",
+            "surfaces",
+            "objects",
+            "devices"
           ]
         }
       ]
@@ -24,7 +27,10 @@
           "label": "object",
           "prompt": "What does the robot grab?",
           "pools": [
-            "objects"
+            "objects",
+            "locations",
+            "surfaces",
+            "devices"
           ]
         }
       ]
@@ -38,7 +44,10 @@
           "label": "object",
           "prompt": "What does the robot place?",
           "pools": [
-            "objects"
+            "objects",
+            "locations",
+            "surfaces",
+            "devices"
           ]
         },
         {
@@ -48,7 +57,9 @@
           "hint": "Where...",
           "pools": [
             "locations",
-            "surfaces"
+            "surfaces",
+            "objects",
+            "devices"
           ]
         }
       ]
@@ -62,7 +73,10 @@
           "label": "object",
           "prompt": "What does the robot pour?",
           "pools": [
-            "objects"
+            "objects",
+            "locations",
+            "surfaces",
+            "devices"
           ]
         },
         {
@@ -72,7 +86,9 @@
           "hint": "Into...",
           "pools": [
             "objects",
-            "devices"
+            "devices",
+            "locations",
+            "surfaces"
           ]
         }
       ]
@@ -86,95 +102,16 @@
           "label": "device",
           "prompt": "Which device does the robot turn on?",
           "pools": [
-            "devices"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "fill",
-      "label": "Fill",
-      "enabled": true,
-      "params": [
-        {
-          "name": "object",
-          "label": "object",
-          "prompt": "What does the robot fill?",
-          "pools": [
+            "devices",
+            "locations",
+            "surfaces",
             "objects"
           ]
         }
       ]
     }
   ],
-  "rules": {
-    "pour": {
-      "object": {
-        "allow": [
-          "beans",
-          "grounds",
-          "pot",
-          "cream",
-          "sugar"
-        ]
-      },
-      "target": {
-        "allow": {
-          "beans": [
-            "grinder"
-          ],
-          "grounds": [
-            "maker",
-            "filter"
-          ],
-          "pot": [
-            "maker",
-            "mug"
-          ],
-          "cream": [
-            "mug",
-            "pot"
-          ],
-          "sugar": [
-            "mug",
-            "pot"
-          ]
-        }
-      }
-    },
-    "place": {
-      "location": {
-        "deny": {
-          "sugar": [
-            "maker",
-            "grinder",
-            "sink"
-          ],
-          "cream": [
-            "maker",
-            "grinder",
-            "sink"
-          ],
-          "beans": [
-            "maker",
-            "sink"
-          ],
-          "grounds": [
-            "grinder",
-            "sink"
-          ]
-        }
-      }
-    },
-    "fill": {
-      "object": {
-        "allow": [
-          "pot",
-          "mug"
-        ]
-      }
-    }
-  },
+  "rules": {},
   "pools": {
     "locations": [
       "beans",
@@ -236,7 +173,8 @@
       "rice_cooker",
       "food",
       "lettuce",
-      "pan"
+      "pan",
+      "water"
     ],
     "devices": [
       "grinder",
@@ -279,7 +217,8 @@
     "stove": "Stove",
     "fridge": "Fridge",
     "microwave": "Microwave",
-    "dishwasher": "Dishwasher"
+    "dishwasher": "Dishwasher",
+    "water": "Water"
   },
   "images": {
     "locations": {
@@ -314,21 +253,46 @@
     }
   },
   "aliases": {
-    "water": {
-      "label": "Water",
-      "id": "pot",
-      "verbs": [
-        "pour"
-      ],
-      "param": "object",
-      "hintWhenClicked": [
-        "sink"
-      ],
-      "hint": "To pour water, choose the Pot (it carries the water), or pick Water below."
+    "dish": {
+      "label": "Dish",
+      "id": "plate"
+    },
+    "cup": {
+      "label": "Cup",
+      "id": "mug"
+    },
+    "coffee_machine": {
+      "label": "Coffee machine",
+      "id": "maker"
+    },
+    "faucet": {
+      "label": "Faucet",
+      "id": "sink"
+    },
+    "frying_pan": {
+      "label": "Frying pan",
+      "id": "pan"
+    },
+    "refrigerator": {
+      "label": "Refrigerator",
+      "id": "fridge"
+    },
+    "salad": {
+      "label": "Salad",
+      "id": "lettuce"
+    },
+    "ground_coffee": {
+      "label": "Ground coffee",
+      "id": "grounds"
+    },
+    "chopping_board": {
+      "label": "Chopping board",
+      "id": "board"
+    },
+    "cooktop": {
+      "label": "Cooktop",
+      "id": "stove"
     }
   },
-  "offScene": [
-    "grounds",
-    "water"
-  ]
+  "response_vocabulary_version": "pour-v2"
 }

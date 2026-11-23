@@ -1,7 +1,9 @@
 (function () {
   'use strict';
 
-  var tutorialMode = new URLSearchParams(location.search).get('phase') === 'tutorial';
+  // UI practice before the study: ?tutorial=1 (variant T1, drones 0). Loads config/tutorial.json (coach steps + vocab overlay).
+  var tutorialMode = new URLSearchParams(location.search).get('tutorial') === '1';
+  var tutorialCfg = null, coach = null;
   var PLACEHOLDER = 'Select...';
   var MODES = ['board', 'tiles', 'places', 'dropdown'];
 
@@ -63,6 +65,83 @@
     if (metrics.first_drag_ms === null) metrics.first_drag_ms = Math.round(performance.now() - t0);
   }
 
+  var plantPractice = new URLSearchParams(location.search).get('practice') === 'plant';
+
+  var practiceCP = 1;
+  function finishPracticePlan() {
+    var steps = buildResponse();
+    var actions = steps.filter(function (s) { return s.verb !== 'move_to'; });
+    var valid = practiceCP === 1
+      ? actions.length === 2 && actions[0].verb === 'grab' && actions[0].params.object === 'plant' &&
+        actions[1].verb === 'place' && actions[1].params.object === 'plant' && actions[1].params.location === 'brown_table'
+      : actions.length === 1 && actions[0].verb === 'turn_on' && actions[0].params.device === 'lamp';
+    if (!valid) {
+      setStatus(practiceCP === 1 ? 'Hint: grab the plant, then place the plant on the brown table. Edit your plan and submit again.' : 'Hint: choose Turn on, then select Lamp and submit again.');
+      return;
+    }
+    if (practiceCP === 1) {
+      practiceCP = 2;
+      activeSlot = null;
+      startCheckpoint({trial_id:'plant-practice', checkpoint_id:'practice2', entities:{}});
+      setStatus('Great job! Practice 2 of 2: enter a plan to turn on the lamp.');
+      return;
+    }
+    submitted = true;
+    render(); setLocked(true); $('plant-targets').hidden = true;
+    setStatus('Great job! Practice complete. You can explore the room.');
+    if (new URLSearchParams(location.search).has('pid')) {
+      var next = document.createElement('button');
+      next.textContent = 'Start main study';
+      next.onclick = function () {
+        var url = new URL(location.href);
+        url.searchParams.delete('practice');
+        url.searchParams.set('practice_done','1');
+        location.replace(url.href);
+      };
+      $('status-bar').append(' ',next);
+    }
+  }
+
+  function openPlantRoom() {
+    var area = $('unity-area');
+    area.textContent = '';
+    area.classList.add('has-frame', 'plant-room');
+    var frame = document.createElement('iframe');
+    frame.title = 'Plant practice room';
+    frame.src = 'practice_web/index.html';
+    // Keep Unity and its hit regions in a single camera coordinate system.
+    var stage = document.createElement('div');
+    stage.className = 'practice-stage';
+    area.appendChild(stage);
+    stage.appendChild(frame);
+    frame.onload = function () {
+      var css = frame.contentDocument.createElement('style');
+      css.textContent = '#unity-footer{display:none} #unity-container.unity-desktop{inset:0;transform:none} #unity-canvas{display:block}';
+      frame.contentDocument.head.appendChild(css);
+    };
+    new ResizeObserver(function () {
+      var scale = Math.min(area.clientWidth / 960, area.clientHeight / 600);
+      stage.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+    }).observe(area);
+    var layer = document.createElement('div');
+    layer.id = 'plant-targets';
+    stage.appendChild(layer);
+    // Positions in the fixed 960 by 600 practice camera view.
+    [['plant',74,14,6,11], ['brown_table',62,70,19,22], ['lamp',71,95,6,10]].forEach(function (spot) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('aria-label', vocab.labels[spot[0]]);
+      var label = document.createElement('span');
+      label.textContent = vocab.labels[spot[0]];
+      button.appendChild(label);
+      Object.assign(button.style, {left:spot[1]+'%', top:spot[2]+'%', width:spot[3]+'%', height:spot[4]+'%'});
+      button.onclick = function () { fillFromTile(spot[0]); };
+      layer.appendChild(button);
+    });
+    startCheckpoint({trial_id:'plant-practice', checkpoint_id:'practice', entities:{}});
+    setStatus('Practice 1 of 2: move the plant to the brown table. Build your plan and submit it.');
+  }
+
   function editable() { return !!metrics && !locked && !submitted; }
 
   // ---------- Undo / Redo ----------
@@ -90,6 +169,7 @@
     closePicker();
     metrics[counter]++;
     render();
+    tutorialEvent(counter === 'undo_count' ? 'undo' : 'redo');
   }
 
   function undo() { applyHistory(history.past, history.future, 'undo_count'); }
@@ -207,6 +287,7 @@
 
   function openConfirm() {
     if (!editable() || confirmOpen || $('submit-btn').disabled) return;
+    if (coach && !coach.allowSubmit()) { coach.nudge(); return; }
     confirmOpen = true;
     var n = slots.length;
     $('confirm-count').textContent = 'Your plan has ' + n + (n === 1 ? ' step.' : ' steps.');
@@ -232,17 +313,21 @@
   function confirmSubmit() {
     if (!confirmOpen) return;
     closeConfirm(false);
+    var wasSubmitted = submitted;
     submit();
+    if (!wasSubmitted && submitted) tutorialEvent('submit');
   }
 
   function submit() {
     if (!editable()) return;
-    if (tutorialMode && (!metrics.move_count || !metrics.delete_count || !metrics.unity_pick_count)) { setStatus('Practice clicking a scene target, moving a card, and deleting an extra card before submitting.', true); return; }
+    if (coach && !coach.allowSubmit()) { coach.nudge(); return; }
+    if (plantPractice) { finishPracticePlan(); return; }
     var submittedUtc = new Date().toISOString();
     submitted = true;
     metrics.total_ms = Math.round(performance.now() - t0);
     if (studyLog) Object.assign(metrics, studyLog.submit(buildResponse()));
     closePicker();
+    metrics.response_vocabulary_version = vocab.response_vocabulary_version || 'legacy';
     var response = buildResponse();
     render();   // 제출 후 잠금 상태 반영 (Submit 비활성화, Toolbox 흐리게)
     showDebug(response);
@@ -442,7 +527,8 @@
       : d.index === 1
         ? stopped + 'Enter your first prediction of its WHOLE plan, from the very first step, then submit.' + droneHint
         : stopped + 'What will the robot do next? Feel free to use any actions that are applicable, or delete anything that is not applicable anymore. Then submit.' + droneHint);
-    $('status-bar').dataset.checkpoint = String(d.index);   // 번호는 화면에 보이지 않는다 (테스트용 표식)
+    $('status-bar').dataset.checkpoint = String(d.index);
+    tutorialEvent('checkpoint:' + d.index);   // 번호는 화면에 보이지 않는다 (테스트용 표식)
   }
 
   // ---------- "The robot has done so far" (read-only) ----------
@@ -468,6 +554,10 @@
   }
 
   function doneRow(step, number, animate) {
+    // Preserve execution/log indices; only translate participant-facing wording.
+    if (String(step.verb).toLowerCase() === 'fill') {
+      step = { verb: 'Pour', args: ['water', step.args[0]] };
+    }
     var verb = verbForUnity(step.verb);
     var li = document.createElement('li');
     li.className = 'done-row verb-' + (verb ? verb.id : 'other') + (animate ? ' done-new' : '');
@@ -484,9 +574,11 @@
       if (k > 0) {
         var join = document.createElement('span');
         join.className = 'done-join';
-        join.textContent = ' ' + (p && p.name === 'target' ? 'into' : p && p.name === 'location' ? 'at' : '') + ' ';
+        join.textContent = ' ' + (p && p.name === 'target' ? (id === 'maker' ? 'into the' : 'into') : p && p.name === 'location' ? 'at' : '') + ' ';
         what.appendChild(join);
       }
+      // Execution uses the source container; describe its contents to participants.
+      if (verb && verb.id === 'pour' && k === 0 && id === 'pot' && step.args[1] === 'maker') id = 'water';
       what.appendChild(doneItem(id));
     });
     li.appendChild(num);
@@ -555,6 +647,7 @@
   function onUnityComplete(d) {
     if (unity.completeSeen) return;
     unity.completeSeen = true;
+    tutorialEvent('complete');
     sendToParent({ type: 'run_complete', trial_id: unity.pid, run_log: d.run_log });
     setLocked(true);
     setStatus(d.run_log && d.run_log.run_status === 'aborted'
@@ -573,7 +666,8 @@
     $('panel').hidden = false;
     setLocked(true);
     render();   // 로딩 중에도 (잠긴 채로) 타임라인과 타일이 보이도록
-    if (!/^[0-7]$/.test(drones) || !/^[LS][1-4]$/.test(variant)) {
+    var pairOk = tutorialMode ? (variant === 'T1' && drones === '0') : (/^[0-7]$/.test(drones) && /^[LS][1-4]$/.test(variant));
+    if (!pairOk) {
       sendToParent({ type: 'unity_error', trial_id: pid, message: 'invalid drones/variant parameters' });
       setStatus('Setup error: invalid study parameters.', true);
       return;
@@ -583,7 +677,6 @@
     url.searchParams.set('variant', variant);
     url.searchParams.set('pid', pid);
     url.searchParams.set('host', location.origin);
-    if (tutorialMode) url.searchParams.set('phase', 'tutorial');
     if (/^\d+$/.test(q.get('layout') || '')) url.searchParams.set('layout', q.get('layout'));
 
     var frame = document.createElement('iframe');
@@ -740,6 +833,7 @@
       insertAfter = null;
       slots.splice(index, 1);
       render();
+      tutorialEvent('delete');
     });
     return rm;
   }
@@ -932,7 +1026,7 @@
   // board 타일은 "대상" 단위로 하나: 장소 id와 물건 id가 같은 것을 가리키면(pot_st/pot, mug_st/mug, filter_st/filter)
   // 하나로 합친다. 대상 키 = id에서 _st를 뗀 값. 동사를 고르면 그 파라미터 풀에 있는 id로 바뀐다.
   // Unity 화면에서 물건을 클릭해 고르는 방식: config.pickInUnity가 true이고 Unity가 연결된 경우
-  function pickInUnity() { return !!(config && config.pickInUnity && unity); }
+  function pickInUnity() { return !!(config && config.pickInUnity && (unity || plantPractice)); }
 
   function conceptKey(id) { return String(id).replace(/_st$/, ''); }
 
@@ -1005,6 +1099,7 @@
     var moving = slots.splice(from, 1)[0];
     slots.splice(at, 0, moving);
     metrics.move_count++;
+    tutorialEvent('move');
     activeSlot = null;
     insertAfter = null;
     render();
@@ -1150,6 +1245,7 @@
     popIndex = at;
     render();
     revealStep(at);
+    tutorialEvent('card:' + verbId);
   }
 
   // Scroll the plan list (only the list, never the page) so card i is fully visible above the action chips.
@@ -1171,6 +1267,7 @@
     if (alias) { item.alias = item.alias || {}; item.alias[target.param] = alias; }
     clearPickNote();
     metrics.param_change_count++;
+    tutorialEvent('pick:' + conceptKey(key));
     // 첫 대상이 바뀌어 기존 두 번째 대상이 규칙에 맞지 않게 되면 비운다
     verbsById[item.verb].params.forEach(function (p) {
       if (p.name !== target.param && item.params[p.name] && !ruleAllows(item, p, item.params[p.name])) item.params[p.name] = '';
@@ -1183,24 +1280,28 @@
 
   function fillFromTile(key) { fillSlot(currentTarget(), key); }
 
-  // ---------- "Can't find it?" row (pickInUnity mode) ----------
-  // vocab.offScene items can also be picked from a small row of buttons. The row is the SAME in every variant and at every
-  // checkpoint, so it carries no information about the answer. vocab.aliases maps a word (e.g. "water") to a real id (pot)
-  // for some blanks only (verbs + param); the card then reads "Pot (water)" and the response still says pot.
+  // ---------- "Can't find it in the scene? Search by name" (pickInUnity mode) ----------
+  // A small search box in the corner of the scene. It searches the WHOLE vocabulary (every item and place, plus synonyms in
+  // vocab.aliases), the same in every variant and checkpoint, so it does not hint at the task. Results need 2+ letters and show
+  // at most 6 (no full list). Picking a result stores the real id (auto-scored). Only when nothing matches: "+ Add '<text>'
+  // as a new item" stores custom:<text> (scored as a mismatch, logged for manual coding).
+  // An alias stores its real id (water -> pot); the card shows the word the participant picked ("Water").
+  var SEARCH_MAX = 6, CUSTOM_MAX = 40;
   function aliasFor(key) { return (vocab.aliases && vocab.aliases[key]) || null; }
   function aliasFits(target, a) {
-    return !!(target && a.verbs.indexOf(slots[target.index].verb) !== -1 && (!a.param || a.param === target.param));
+    if (!target) return false;
+    if (a.verbs && a.verbs.indexOf(slots[target.index].verb) === -1) return false;
+    return !a.param || a.param === target.param;
   }
-  function offSceneAccepts(target, key) {
-    var a = aliasFor(key);
-    return a ? aliasFits(target, a) && accepts(target, a.id) : accepts(target, key);
-  }
-  function offSceneLabel(key) { var a = aliasFor(key); return a ? a.label : conceptLabel(key); }
-  function aliasSuffix(item, paramName, val) {
+  function isCustom(id) { return typeof id === 'string' && id.indexOf('custom:') === 0; }
+  // what a filled blank shows: the alias word if one was used, the typed text for a custom item, else the normal label
+  function shownLabel(item, paramName, val) {
     var k = item.alias && item.alias[paramName], a = k && aliasFor(k);
-    return a && val && conceptKey(a.id) === conceptKey(val) ? ' (' + a.label.toLowerCase() + ')' : '';
+    if (a && val && conceptKey(a.id) === conceptKey(val)) return a.label;
+    if (isCustom(val)) return val.slice(7);
+    return labelFor(val);
   }
-  // Clicking e.g. the sink while a Pour object blank is active: explain how to say "water" instead of a bare rejection
+  // Clicking e.g. the sink on a Pour blank: a neutral pointer to the search (no answer in the text)
   function clickHint(key, target) {
     var aliases = vocab.aliases || {};
     for (var k in aliases) {
@@ -1209,80 +1310,276 @@
     }
     return null;
   }
-  function pickOffScene(key) {
-    var target = currentTarget(), a = aliasFor(key), id = a ? a.id : key;
-    function log(result) { if (studyLog) studyLog.record('item_pick_result', { id: id, result: result, source: 'tile', alias: a ? key : null }); }
-    if (studyLog) studyLog.record('item_pick_attempt', { id: key, editable: editable(), target: target, source: 'tile' });
-    if (!editable() || confirmOpen) { log('not_editable'); return; }
-    if (!target) { log('no_target'); pickNote('Choose an action below first, then pick ' + offSceneLabel(key) + '.'); return; }
-    if (offSceneAccepts(target, key) && fillSlot(target, id, a ? key : null)) { log('accepted'); markFirstDrag(); return; }
-    log('incompatible_item');
-    pickNote(offSceneLabel(key) + ' does not fit step ' + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ').');
+  function searchEntries() {
+    var out = boardItems().map(function (o) { return { key: o.id, label: o.label, id: o.id, alias: null }; });
+    Object.keys(vocab.aliases || {}).forEach(function (k) {
+      var a = vocab.aliases[k];
+      out.push({ key: k, label: a.label, id: a.id, alias: k });
+    });
+    return out;
   }
-  function renderOffScene(target) {
-    var ids = vocab.offScene || [];
-    var row = $('offscene');
-    if (!row) {
-      row = document.createElement('div');
-      row.id = 'offscene';
-      var cap = document.createElement('span');
-      cap.className = 'offscene-label';
-      cap.textContent = "Can't find it in the scene? Choose here:";
-      row.appendChild(cap);
-      var list = document.createElement('span');
-      list.className = 'offscene-list';
-      row.appendChild(list);
-      $('places').appendChild(row);
+  function searchMatches(q) {
+    q = q.trim().toLowerCase();
+    if (q.length < 2) return [];
+    var hits = searchEntries().filter(function (e) { return e.label.toLowerCase().indexOf(q) !== -1; });
+    hits.sort(function (x, y) {
+      var a = x.label.toLowerCase().indexOf(q) === 0 ? 0 : 1, b = y.label.toLowerCase().indexOf(q) === 0 ? 0 : 1;
+      return a - b || (x.label.toLowerCase() < y.label.toLowerCase() ? -1 : 1);
+    });
+    return hits.slice(0, SEARCH_MAX);
+  }
+  function entryFits(target, e) {
+    if (!target) return false;
+    var a = e.alias && aliasFor(e.alias);
+    return a ? aliasFits(target, a) && accepts(target, a.id) : accepts(target, e.id);
+  }
+  function cleanCustom(text) { return String(text).replace(/\s+/g, ' ').trim().slice(0, CUSTOM_MAX); }
+
+  var find = { open: false, hi: 0, logTimer: null };
+  function findLog(type, data) { if (studyLog) studyLog.record(type, data); }
+  function closeFind() {
+    var box = $('find-box');
+    find.open = false;
+    if (!box) return;
+    box.classList.remove('open');
+    $('find-input').value = '';
+    renderFindResults();
+  }
+  function openFind() {
+    find.open = true; find.hi = 0;
+    $('find-box').classList.add('open');
+    renderFindResults();
+    $('find-input').focus();
+    findLog('item_search_open', { target: currentTarget() });
+  }
+  function pickFind(e, query) {
+    var target = currentTarget();
+    var data = { id: e ? e.id : null, query: query, source: 'search', alias: e && e.alias ? e.alias : null, custom: !e };
+    findLog('item_pick_attempt', { id: data.id, editable: editable(), target: target, source: 'search', query: query });
+    function done(result) { data.result = result; findLog('item_pick_result', data); }
+    if (!editable() || confirmOpen) { done('not_editable'); return; }
+    if (!target) { done('no_target'); pickNote('Choose an action below first, then search.'); return; }
+    if (e) {
+      if (!entryFits(target, e) || !fillSlot(target, e.id, e.alias)) {
+        done('incompatible_item');
+        pickNote(e.label + ' does not fit step ' + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ').');
+        return;
+      }
+    } else {
+      var text = cleanCustom(query);
+      if (text.length < 2) { done('too_short'); return; }
+      data.id = 'custom:' + text;
+      fillCustom(target, text);
     }
-    row.hidden = !pickInUnity() || !ids.length;
-    var box = row.querySelector('.offscene-list');
-    box.textContent = '';
-    ids.forEach(function (key) {
+    done('accepted');
+    markFirstDrag();
+    closeFind();
+  }
+  // A participant-typed item: stored as custom:<text> (no vocabulary check; it never matches the truth automatically)
+  function fillCustom(target, text) {
+    var item = slots[target.index];
+    item.params[target.param] = 'custom:' + text;
+    if (item.alias) delete item.alias[target.param];
+    clearPickNote();
+    metrics.param_change_count++;
+    metrics.custom_item_count = (metrics.custom_item_count || 0) + 1;
+    var next = firstEmpty(target.index);
+    activeSlot = next ? { index: target.index, param: next } : null;
+    render();
+  }
+  function renderFindResults() {
+    var list = $('find-results');
+    if (!list) return;
+    var q = $('find-input').value, target = currentTarget();
+    list.textContent = '';
+    if (!find.open) return;
+    var hits = q.trim().length >= 2 ? searchMatches(q) : [];
+    var note = document.createElement('li');
+    note.className = 'find-note';
+    if (!target) note.textContent = 'First choose an action below.';
+    else if (q.trim().length < 2) note.textContent = 'Type at least 2 letters.';
+    if (note.textContent) list.appendChild(note);
+    var enabled = [];
+    hits.forEach(function (e) {
+      var li = document.createElement('li');
       var b = document.createElement('button');
       b.type = 'button';
-      b.className = 'offscene-tile';
-      b.dataset.id = key;
-      b.textContent = offSceneLabel(key);
-      b.disabled = !editable() || !offSceneAccepts(target, key);
-      b.addEventListener('click', function () { pickOffScene(key); });
-      box.appendChild(b);
+      b.className = 'find-hit';
+      b.dataset.key = e.key;
+      b.textContent = e.label;
+      b.disabled = !editable() || !entryFits(target, e);
+      if (!b.disabled) enabled.push(b);
+      b.addEventListener('mousedown', function (ev) { ev.preventDefault(); });   // keep the input focused
+      b.addEventListener('click', function () { pickFind(e, q); });
+      li.appendChild(b);
+      list.appendChild(li);
     });
+    if (target && q.trim().length >= 2 && !hits.length) {
+      var li2 = document.createElement('li');
+      var add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'find-hit find-add';
+      add.textContent = '+ Add "' + cleanCustom(q) + '" as a new item';
+      add.disabled = !editable();
+      if (!add.disabled) enabled.push(add);
+      add.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+      add.addEventListener('click', function () { pickFind(null, q); });
+      li2.appendChild(add);
+      list.appendChild(li2);
+    }
+    if (find.hi >= enabled.length) find.hi = 0;
+    enabled.forEach(function (b, i) { b.classList.toggle('hi', i === find.hi); });
+  }
+  function renderOffScene(target) {
+    var box = $('find-box');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'find-box';
+      box.innerHTML = '<button type="button" id="find-open"></button>' +
+        '<div class="find-panel"><ul id="find-results" role="listbox"></ul>' +
+        '<div class="find-row"><input id="find-input" type="text" autocomplete="off" spellcheck="false" maxlength="40" aria-label="Search by name">' +
+        '<button type="button" id="find-close" aria-label="Close">&times;</button></div></div>';
+      box.querySelector('#find-open').textContent = "Can't find it in the scene? Search by name";
+      box.querySelector('#find-input').placeholder = 'Type an item or place…';
+      box.querySelector('#find-open').addEventListener('click', openFind);
+      box.querySelector('#find-close').addEventListener('click', closeFind);
+      var input = box.querySelector('#find-input');
+      input.addEventListener('input', function () {
+        find.hi = 0;
+        renderFindResults();
+        clearTimeout(find.logTimer);
+        var q = input.value;
+        find.logTimer = setTimeout(function () {   // what people search for (incl. zero-hit words): to grow the vocabulary
+          if (q.trim().length >= 2) findLog('item_search', { query: q.trim(), results: searchMatches(q).length });
+        }, 700);
+      });
+      input.addEventListener('keydown', function (e) {
+        var btns = Array.prototype.filter.call($('find-results').querySelectorAll('.find-hit'), function (b) { return !b.disabled; });
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (btns.length) { find.hi = (find.hi + (e.key === 'ArrowDown' ? 1 : btns.length - 1)) % btns.length; renderFindResults(); }
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (btns[find.hi]) btns[find.hi].click();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closeFind();
+        }
+      });
+    }
+    if (box.parentNode !== $('unity-area')) $('unity-area').appendChild(box);   // floats over the bottom-right corner of the scene
+    box.hidden = !pickInUnity();
+    box.classList.toggle('open', find.open);
+    $('find-open').disabled = !editable();
+    if (!editable() && find.open) closeFind();
+    renderFindResults();
   }
 
   function buildSlotButton(index, param) {
     var item = slots[index];
     var val = item.params[param.name];
     var t = currentTarget();
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'slot-btn' + (val ? '' : ' empty') + (t && t.index === index && t.param === param.name ? ' active' : '');
-    btn.dataset.param = param.name;
-    if (val) {
-      // 계획 카드에는 이름만 표시한다 (그림은 선택기/타일에만)
-      var nm = document.createElement('span');
-      nm.textContent = labelFor(val) + aliasSuffix(item, param.name, val);
-      btn.appendChild(nm);
-      btn.title = 'Click to change';
+    var target = { index: index, param: param.name };
+    var isActive = !!(activeSlot && activeSlot.index === index && activeSlot.param === param.name && !val);
+    var control = document.createElement('div');
+    control.className = 'slot-control';
+    var controlInput;
+    if (isActive) {
+      // Replace the placeholder itself with the search field.
+      controlInput = document.createElement('input');
+      controlInput.type = 'search';
+      controlInput.className = 'slot-btn slot-inline-search active';
+      controlInput.placeholder = 'Search…';
+      controlInput.setAttribute('aria-label', 'Search ' + param.label + ' by name');
+      controlInput.autocomplete = 'off';
     } else {
-      btn.textContent = param.hint || ('Which ' + param.label + '?');
-    }
-    // 누르면 이 칸을 선택 (채워져 있으면 비우고 다시 고르게 한다)
-    btn.addEventListener('click', function () {
-      if (!editable()) return;
-      if (item.params[param.name]) { item.params[param.name] = ''; metrics.param_change_count++; }
-      activeSlot = { index: index, param: param.name };
-      render();
-    });
-    // 그림을 이 칸에 직접 끌어다 놓기
-    btn.addEventListener('dragover', function (e) { e.preventDefault(); });
-    btn.addEventListener('drop', function (e) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'slot-btn' + (val ? '' : ' empty') + (t && t.index === index && t.param === param.name ? ' active' : '');
+      btn.dataset.param = param.name;
+      if (val) {
+        var nm = document.createElement('span');
+        nm.textContent = shownLabel(item, param.name, val);
+        btn.appendChild(nm);
+        btn.title = 'Click to change';
+      } else btn.textContent = param.hint || ('Which ' + param.label + '?');
+      btn.addEventListener('click', function () {
+        if (!editable()) return;
+        if (item.params[param.name]) { item.params[param.name] = ''; metrics.param_change_count++; }
+        activeSlot = target;
+        render();
+        var field = document.querySelector('.slot-inline-search');
+        if (field) { field.focus(); field.dispatchEvent(new Event('focus')); }
+      });
+      btn.addEventListener('dragover', function (e) { e.preventDefault(); });
+      btn.addEventListener('drop', function (e) {
       var data = readDrag(e);
       if (!data || data.from !== 'tile') return;
       e.preventDefault();
       e.stopPropagation();
-      fillSlot({ index: index, param: param.name }, data.id);
-    });
-    return btn;
+      fillSlot(target, data.id);
+      });
+      controlInput = btn;
+    }
+    control.appendChild(controlInput);
+    if (isActive) {
+      var results = document.createElement('div');
+      results.className = 'slot-search-results slot-search-portal';
+      results.setAttribute('role', 'listbox');
+      function updateSearch() {
+        results.textContent = '';
+        var query = controlInput.value.trim();
+        results.hidden = !query;
+        $('plan-box').classList.toggle('slot-search-open', !!query);
+        if (!query) return;
+        var entries = searchEntries().filter(function (entry) { return entryFits(target, entry); });
+        entries = entries.filter(function (entry) { return entry.label.toLowerCase().indexOf(query.toLowerCase()) !== -1; });
+        entries.sort(function (a, b) { return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }); });
+        entries.slice(0, SEARCH_MAX).forEach(function (entry) {
+          var option = document.createElement('button');
+          option.type = 'button';
+          option.setAttribute('role', 'option');
+          option.textContent = entry.label;
+          option.addEventListener('mousedown', function (event) { event.preventDefault(); });
+          option.addEventListener('click', function () { fillSlot(target, entry.id, entry.alias); });
+          results.appendChild(option);
+        });
+        if (!entries.length) {
+          var custom = document.createElement('button');
+          custom.type = 'button';
+          custom.textContent = 'Use “' + cleanCustom(query) + '”';
+          custom.addEventListener('mousedown', function (event) { event.preventDefault(); });
+          custom.addEventListener('click', function () { fillCustom(target, query); });
+          results.appendChild(custom);
+        }
+        positionSlotSearch(results, controlInput);
+      }
+      controlInput.addEventListener('input', updateSearch);
+      controlInput.addEventListener('focus', updateSearch);
+      controlInput.addEventListener('click', function (event) { event.stopPropagation(); });
+      controlInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') { event.preventDefault(); activeSlot = null; render(); }
+      });
+      document.body.appendChild(results);
+      results._slotAnchor = controlInput;
+      updateSearch();
+    }
+    return control;
+  }
+
+  function positionSlotSearch(search, anchor) {
+    var rect = anchor.getBoundingClientRect();
+    var width = Math.min(Math.max(220, rect.width), window.innerWidth - 16);
+    var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    search.style.width = width + 'px';
+    search.style.left = left + 'px';
+    // Keep the input and results inside the viewport, opening upward near the bottom.
+    var estimatedHeight = Math.min(220, search.scrollHeight || 220);
+    var top = rect.bottom + 6;
+    if (top + estimatedHeight > window.innerHeight - 8 && rect.top > estimatedHeight) {
+      top = rect.top - estimatedHeight - 6;
+    }
+    search.style.top = Math.max(8, Math.min(top, window.innerHeight - 120)) + 'px';
   }
 
   // 카드 한 장: 머리줄(번호 · 동작 · ×) + 대상 칸들 (한 줄에 하나씩, 두 번째 칸 앞에는 연결어)
@@ -1498,6 +1795,9 @@
   }
 
   function render() {
+    document.querySelectorAll('.slot-search-portal').forEach(function (menu) { menu.remove(); });
+    var planBox = $('plan-box');
+    if (planBox) planBox.classList.remove('slot-search-open');
     if (studyLog) studyLog.plan(buildResponse());
     recordHistory();
     var tl = $('timeline');
@@ -1539,6 +1839,11 @@
     popIndex = -1;
     updateSubmit();
     updateHistoryButtons();
+    if (coach) coach.paint();
+    // Position portal menus only after their anchor buttons have entered layout.
+    document.querySelectorAll('.slot-search-portal').forEach(function (menu) {
+      if (menu._slotAnchor && menu._slotAnchor.isConnected) positionSlotSearch(menu, menu._slotAnchor);
+    });
   }
 
   function buildGhost(i) {
@@ -1607,10 +1912,18 @@
   }
 
   Promise.all([
-    fetch(tutorialMode ? 'config/tutorial_vocab.json' : 'config/vocab.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }),
-    fetch('config/config.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+    fetch('config/vocab.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }),
+    fetch('config/config.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }),
+    tutorialMode ? fetch('config/tutorial.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }) : Promise.resolve(null)
   ]).then(function (res) {
     vocab = res[0];
+    if (plantPractice) {
+      vocab.pools = {locations:['plant','brown_table','lamp'], objects:['plant'], surfaces:['brown_table'], devices:['lamp']};
+      vocab.labels = {plant:'Plant',brown_table:'Brown table',lamp:'Lamp'};
+      vocab.aliases = {}; vocab.images = {}; vocab.rules = {};
+    }
+    tutorialCfg = res[2];
+    if (tutorialCfg) applyVocabOverlay(vocab, tutorialCfg.vocabOverlay || {});
     allVerbs = vocab.verbs.slice();
     vocab.verbs = vocab.verbs.filter(function (v) { return v.enabled !== false; });   // "enabled": false 인 동사는 숨긴다
     config = res[1];
@@ -1653,6 +1966,7 @@
       }
       if (e.key === 'Escape' && picker) closePicker();
       var k = String(e.key).toLowerCase();
+      if (e.target && e.target.id === 'find-input') return;   // typing in the search box: no plan undo/redo
       if ((e.ctrlKey || e.metaKey) && !e.altKey && (k === 'z' || k === 'y')) {
         e.preventDefault();
         if (k === 'y' || e.shiftKey) redo(); else undo();
@@ -1668,7 +1982,8 @@
     renderToolbox();
 
     var pid = q.get('pid'), drones = q.get('drones'), variant = q.get('variant');
-    if (config.unityUrl && pid && drones !== null && variant) {
+    if (plantPractice) openPlantRoom();
+    else if (config.unityUrl && pid && drones !== null && variant) {
       setupUnity(q);
       if (inputMode === 'board') render();   // Unity가 연결됐으니 대기 화면에서도 그림 타일을 숨긴다 (Unity에서 고르는 방식)
     } else if (config.devMode && q.has('n')) {
@@ -1677,30 +1992,147 @@
       render();
       $('panel').hidden = false;
     }
-    studyLog = window.createStudyLog(sendToParent, function () {
+    if (!plantPractice) studyLog = window.createStudyLog(sendToParent, function () {
       return {trial_id: unity ? unity.pid : trial.trial_id, checkpoint_id: unity && unity.cp ? 'cp' + unity.cp.index : trial.checkpoint_id,
         qualtrics_response_id: new URLSearchParams(location.search).get('response_id') || ''};
     });
     window.studyLog = studyLog; // researcher-only console export: studyLog.download()
-    if (metrics && !submitted) studyLog.begin(buildResponse());
+    if (tutorialMode && tutorialCfg && !coach) coach = createCoach(tutorialCfg);
+    if (studyLog && metrics && !submitted) studyLog.begin(buildResponse());
     ready = true;
     pendingMessages.splice(0).forEach(routeMessage);
     // 시작 조건(Unity 파라미터 또는 부모의 checkpoint)을 못 받으면 빈 화면 대신 안내를 보여 준다
     setTimeout(function () { if ($('panel').hidden) $('idle-note').hidden = false; }, 1500);
   });
-  if (tutorialMode) {
-    var guide = document.createElement('div');
-    guide.style.cssText = 'padding:14px;background:#fff4cf;color:#222;font:16px system-ui;border-bottom:2px solid #c99a26;';
-    document.body.insertBefore(guide, document.body.firstChild);
-    setInterval(function () {
-      if (!metrics) { guide.textContent = 'Tutorial: loading the parcel scene. Use the same action cards as the main study.'; return; }
-      if (unity && unity.completeSeen) { guide.textContent = 'Tutorial complete. You practiced the same action cards, scene clicks, order controls, deletion and Submit dialog used in the study.'; return; }
-      if (submitted) { guide.textContent = 'Prediction submitted. Watch the robot. This practice is not graded.'; return; }
-      var hint = !metrics.unity_pick_count ? 'Choose a card field, then click a target in the scene.' : slots.length < 2 ? 'Add Move to and Grab cards, then click the shelf for Move to and the parcel for Grab.' :
-        metrics.move_count === 0 ? 'Drag a card to another position in your plan. You can also use the arrow controls.' :
-        metrics.delete_count === 0 ? 'Add an extra card, then remove it with its delete control.' :
-        'Now complete your prediction and click Submit. Use the confirmation dialog just as in the main study.';
-      guide.textContent = 'Tutorial — ' + hint + (unity && unity.drone_count > 0 ? ' Drones mark upcoming destinations; ×N groups repeated visits.' : ' Your condition has no drones.');
-    }, 250);
+  // ---------- Tutorial coach (UI practice, ?tutorial=1) ----------
+  // One instruction at a time (config/tutorial.json "steps"). A step is done when all its "needs" events have happened since it was
+  // shown (any order; repeats count separately, e.g. two "move"). Events come from the existing actions (tutorialEvent calls).
+  // Submit is only possible at a step that needs "submit". "Show me" appears after hintAfterMs without progress.
+  function tutorialEvent(name) { if (coach) coach.event(name); }
+
+  // tutorial.json "vocabOverlay": adds pool entries and widens EXISTING rules only (never adds a restriction the study does not have)
+  function applyVocabOverlay(v, ov) {
+    Object.keys(ov.pools || {}).forEach(function (pool) {
+      v.pools[pool] = v.pools[pool] || [];
+      ov.pools[pool].forEach(function (id) { if (v.pools[pool].indexOf(id) === -1) v.pools[pool].push(id); });
+    });
+    Object.keys(ov.labels || {}).forEach(function (id) { v.labels = v.labels || {}; v.labels[id] = ov.labels[id]; });
+    Object.keys(ov.rules || {}).forEach(function (verb) {
+      Object.keys(ov.rules[verb]).forEach(function (param) {
+        var base = v.rules && v.rules[verb] && v.rules[verb][param];
+        if (!base || !base.allow) return;   // no allow-list in the study: nothing to widen
+        var add = ov.rules[verb][param].allow;
+        if (Array.isArray(base.allow) && Array.isArray(add)) add.forEach(function (id) { if (base.allow.indexOf(id) === -1) base.allow.push(id); });
+        else if (!Array.isArray(base.allow) && add && !Array.isArray(add)) Object.keys(add).forEach(function (k) { base.allow[k] = add[k]; });
+      });
+    });
+  }
+
+  function createCoach(cfg) {
+    var box = document.createElement('div');
+    box.id = 'coach';
+    box.setAttribute('role', 'status');
+    box.setAttribute('aria-live', 'polite');
+    $('status-bar').parentNode.insertBefore(box, $('status-bar').nextSibling);
+    document.body.classList.add('tutorial');
+    var steps = cfg.steps || [], k = -1, need = [], shownAt = 0, lastProgress = 0, hintTimer = null, mode = 'intro';
+    var hintMs = parseInt(new URLSearchParams(location.search).get('hint_ms'), 10) || cfg.hintAfterMs || 20000;
+    var api = {};
+    function cur() { return steps[k] || null; }
+    function draw() {
+      box.textContent = '';
+      var head = document.createElement('div');
+      head.className = 'coach-head';
+      var text = document.createElement('p');
+      text.className = 'coach-text';
+      if (mode === 'step') {
+        head.textContent = 'Practice · Step ' + (k + 1) + ' of ' + steps.length;
+        text.textContent = cur().text;
+      } else {
+        head.textContent = 'Practice';
+        text.textContent = mode === 'intro' ? cfg.intro : mode === 'waiting' ? cfg.waiting : cfg.done;
+      }
+      box.appendChild(head);
+      box.appendChild(text);
+      if (mode === 'step' && cur().hint) {
+        var show = document.createElement('button');
+        show.type = 'button';
+        show.id = 'coach-show';
+        show.textContent = 'Show me';
+        show.hidden = true;
+        var hint = document.createElement('p');
+        hint.className = 'coach-hint';
+        hint.hidden = true;
+        hint.textContent = cur().hint;
+        show.addEventListener('click', function () {
+          hint.hidden = false; show.hidden = true;
+          pulseTargets();
+          if (studyLog) studyLog.record('tutorial_hint_used', { step: k + 1 });
+        });
+        box.appendChild(show);
+        box.appendChild(hint);
+      }
+      box.dataset.step = mode === 'step' ? String(k + 1) : mode;
+      api.paint();
+    }
+    function armHint() {
+      clearTimeout(hintTimer);
+      if (mode !== 'step' || !cur().hint) return;
+      hintTimer = setTimeout(function () { var b = $('coach-show'); if (b && $('coach').dataset.step === String(k + 1)) b.hidden = false; }, hintMs);
+    }
+    function pulseTargets() {
+      document.querySelectorAll('.coach-target').forEach(function (el) {
+        el.classList.remove('coach-pulse'); void el.offsetWidth; el.classList.add('coach-pulse');
+      });
+    }
+    function show(i) {
+      k = i; mode = 'step';
+      need = (cur().needs || []).slice();
+      shownAt = lastProgress = performance.now();
+      if (studyLog) studyLog.record('tutorial_step_shown', { step: k + 1 });
+      draw();
+      armHint();
+    }
+    function finishStep() {
+      if (studyLog) studyLog.record('tutorial_step_done', { step: k + 1, ms: Math.round(performance.now() - shownAt) });
+      var next = k + 1;
+      if (next >= steps.length) { mode = 'waiting'; draw(); return; }
+      if (steps[next].atCheckpoint && !api.checkpointSeen(steps[next].atCheckpoint)) { mode = 'waiting'; k = next - 1; draw(); return; }
+      show(next);
+    }
+    var cpSeen = {};
+    api.checkpointSeen = function (n) { return !!cpSeen[n]; };
+    api.event = function (name) {
+      var m = /^checkpoint:(\d+)$/.exec(name);
+      if (m) {
+        cpSeen[m[1]] = true;
+        var nextIdx = mode === 'waiting' ? k + 1 : -1;
+        if (mode === 'intro' && m[1] === '1') show(0);
+        else if (nextIdx >= 0 && steps[nextIdx] && String(steps[nextIdx].atCheckpoint) === m[1]) show(nextIdx);
+        return;
+      }
+      if (name === 'complete') { mode = 'done'; clearTimeout(hintTimer); draw(); return; }
+      if (mode !== 'step') return;
+      var i = need.indexOf(name);
+      if (i === -1) return;
+      need.splice(i, 1);
+      lastProgress = performance.now();
+      armHint();
+      if (!need.length) finishStep();
+    };
+    api.allowSubmit = function () { return mode === 'step' && (cur().needs || []).indexOf('submit') !== -1 && need.length === 1 && need[0] === 'submit'; };
+    api.nudge = function () {
+      var t = box.querySelector('.coach-text');
+      if (t) { t.classList.remove('coach-shake'); void t.offsetWidth; t.classList.add('coach-shake'); }
+      pulseTargets();
+      if (studyLog) studyLog.record('tutorial_submit_blocked', { step: mode === 'step' ? k + 1 : null });
+    };
+    api.paint = function () {
+      document.querySelectorAll('.coach-target').forEach(function (el) { el.classList.remove('coach-target'); });
+      if (mode !== 'step' || !cur().target) return;
+      document.querySelectorAll(cur().target).forEach(function (el) { el.classList.add('coach-target'); });
+    };
+    draw();
+    return api;
   }
 })();

@@ -2,8 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <script>
+    // Existing published survey questions already load this URL with their assignment.
+    (function () {
+      var url = new URL(location.href);
+      var params = url.searchParams;
+      if (location.hostname === 'celinemang.github.io' && window.parent !== window &&
+          params.has('pid') && !params.has('practice') && !params.has('tutorial') && !params.has('practice_done')) {
+        params.set('practice', 'plant');
+        history.replaceState(null, '', url.href);
+      }
+    })();
+  </script>
   <title>Plan Panel</title>
-  <link rel="stylesheet" href="css/style.css?v=39">
+  <link rel="stylesheet" href="css/style.css?v=plant26">
 </head>
 <body>
   <div id="panel" hidden>
@@ -57,6 +69,6 @@
   </div>
   <p id="idle-note" hidden>Waiting for the study to start. This panel is meant to be opened inside the survey (or through mock_parent.html when testing).</p>
   <script src="js/study-log.js?v=2"></script>
-  <script src="js/app.js?v=39"></script>
+  <script src="js/app.js?v=plant26"></script>
 </body>
 </html>

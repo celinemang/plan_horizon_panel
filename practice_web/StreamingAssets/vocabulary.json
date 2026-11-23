@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "showMoveToCard": true,
+  "verbs": [
+    { "id": "move_to", "label": "Move to", "field1": { "type": "place", "label": "place" }, "field2": null },
+    { "id": "grab", "label": "Grab", "field1": { "type": "item", "label": "item" }, "field2": null },
+    { "id": "place", "label": "Place", "field1": { "type": "item", "label": "item" }, "field2": { "type": "destinations_targets", "label": "destination" } },
+    { "id": "pour", "label": "Pour", "field1": { "type": "item", "label": "item" }, "field2": { "type": "destinations_targets", "label": "target" } },
+    { "id": "turn_on", "label": "Turn on", "field1": { "type": "device", "label": "device" }, "field2": null },
+    { "id": "fill", "label": "Fill", "field1": { "type": "container", "label": "container" }, "field2": null }
+  ],
+  "optionLists": {
+    "places": [
+      { "id": "beans", "label": "Coffee Beans" },
+      { "id": "grinder", "label": "Grinder" },
+      { "id": "filter_st", "label": "Filter Station" },
+      { "id": "pot_st", "label": "Pot Station" },
+      { "id": "sink", "label": "Sink" },
+      { "id": "maker", "label": "Coffee Maker" },
+      { "id": "mug_st", "label": "Mug Station" },
+      { "id": "cream", "label": "Cream" },
+      { "id": "sugar", "label": "Sugar" },
+      { "id": "table", "label": "Table" },
+      { "id": "person", "label": "Person" }
+    ],
+    "items": [
+      { "id": "beans", "label": "Coffee Beans" },
+      { "id": "grounds", "label": "Coffee Grounds" },
+      { "id": "filter", "label": "Filter" },
+      { "id": "pot", "label": "Pot" },
+      { "id": "mug", "label": "Mug" },
+      { "id": "cream", "label": "Cream" },
+      { "id": "sugar", "label": "Sugar" }
+    ],
+    "destinations_targets": [
+      { "id": "grinder", "label": "Grinder" },
+      { "id": "maker", "label": "Coffee Maker" },
+      { "id": "mug", "label": "Mug" },
+      { "id": "table", "label": "Table" },
+      { "id": "person", "label": "Person" },
+      { "id": "counter", "label": "Counter" }
+    ],
+    "devices": [
+      { "id": "grinder", "label": "Grinder" },
+      { "id": "maker", "label": "Coffee Maker" }
+    ],
+    "containers": [
+      { "id": "pot", "label": "Pot" }
+    ]
+  }
+}

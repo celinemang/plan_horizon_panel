@@ -208,6 +208,15 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .mode-board .step-link { font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
 .mode-board .slot-btn { justify-content: flex-start; gap: 6px; width: 100%; padding: 5px 8px; font-size: 13px; }
 .mode-board .slot-btn .step-img { width: 24px; height: 24px; }
+.slot-control { position: relative; display: inline-flex; flex-direction: column; align-items: stretch; vertical-align: middle; }
+.slot-inline-search { box-sizing: border-box; width: 260px; max-width: 100%; min-width: 220px; padding: 6px 10px; cursor: text; font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1.35; }
+.mode-board .slot-inline-search { width: 260px; min-width: 220px; }
+.slot-inline-search::placeholder { color: var(--ink-soft); opacity: 1; }
+.slot-search-portal { position: fixed; z-index: 10000; box-sizing: border-box; max-width: calc(100vw - 16px); }
+.slot-search-results { display: flex; flex-direction: column; max-height: 220px; overflow: auto; padding: 4px; border: 1px solid var(--ink-soft); border-radius: 7px; background: var(--card); box-shadow: 0 4px 12px rgba(30, 32, 42, .2); }
+.slot-search-results[hidden] { display: none; }
+.slot-search-results button { flex: none; padding: 5px 7px; border: 0; border-radius: 4px; background: transparent; color: var(--ink); font-family: inherit; font-size: 12px; line-height: 1.35; text-align: left; cursor: pointer; }
+.slot-search-results button:hover, .slot-search-results button:focus-visible { background: var(--slot); outline: none; }
 .mode-board .slot.empty { min-height: 80px; }
 .mode-board .slot.empty .ghost { min-height: 80px; }
 
@@ -253,6 +262,7 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 .mode-board #plan-box { grid-area: 7 / -2; min-height: 0; display: flex; flex-direction: column; border: 2px dashed var(--ink-soft); border-radius: 12px; background: var(--panel); overflow: hidden; }
 .mode-board #plan-box #timeline { flex: 0 1 auto; min-height: 0; margin: 0; padding: 10px 10px 4px; border: 0; border-radius: 0; background: transparent; overflow-y: auto; }
 .mode-board #plan-box #verb-bar { flex: none; margin: 0; padding: 6px 10px 10px; gap: 6px; }
+.mode-board #plan-box.slot-search-open #verb-bar { margin-top: 62px; }
 .mode-board #plan-box .slot.empty.end, .mode-board #plan-box .slot.empty.end .ghost { min-height: 10px; border: 0; padding: 0; }
 .mode-board #plan-box .slot.empty.end.over .ghost, .mode-board #plan-box .slot.empty.end.drop-before .ghost { min-height: 24px; border: 2px dashed var(--accent); }
 .mode-board #submit-btn { grid-area: 8 / -2; padding: 11px; font-size: 15px; }
@@ -393,12 +403,58 @@ h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-
 }
 
 /* "Can't find it in the scene? Choose here:" (pickInUnity): same row in every variant, small dashed buttons */
-#offscene { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 0; }
-#offscene[hidden] { display: none; }
-.offscene-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
-.offscene-list { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.offscene-tile { padding: 3px 10px; border: 2px dashed var(--ink); border-radius: 999px; background: var(--card); color: var(--ink); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
-.offscene-tile:hover:not(:disabled) { background: #fff6d6; }
-.offscene-tile:disabled { opacity: 0.4; cursor: not-allowed; }
+#unity-area { position: relative; }
+/* "Can't find it in the scene? Search by name": floats INSIDE the scene, bottom-right (only decoration there).
+   Collapsed = one small pill; open = input with up to 6 results ABOVE it. Same look as the rest of the panel. */
+#find-box { position: absolute; right: 10px; bottom: 10px; z-index: 2; display: flex; flex-direction: column; align-items: flex-end; max-width: calc(100% - 20px); }
+#find-box[hidden] { display: none; }
+#find-open { padding: 5px 12px; border: 2px solid var(--ink); border-radius: 999px; background: rgba(251, 248, 240, 0.95); color: var(--ink); box-shadow: 2px 2px 0 var(--ink);
+  font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+#find-open::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border: 2px solid currentColor; border-radius: 50%; vertical-align: -1px;
+  box-shadow: 3px 3px 0 -1px currentColor; }   /* small magnifier */
+#find-open:hover:not(:disabled) { background: #fff6d6; }
+#find-open:disabled { opacity: 0.5; cursor: not-allowed; }
+#find-box.open #find-open { display: none; }
+.find-panel { display: none; width: 260px; max-width: 100%; padding: 6px; border: 2px solid var(--ink); border-radius: 12px; background: rgba(251, 248, 240, 0.97); box-shadow: 2px 2px 0 var(--ink); }
+#find-box.open .find-panel { display: block; }
+#find-results { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+#find-results:empty { display: none; }
+.find-note { padding: 2px 4px; color: var(--ink-soft); font-size: 12px; font-style: italic; }
+.find-hit { width: 100%; padding: 5px 9px; border: 1.5px solid var(--slot); border-radius: 8px; background: var(--card); color: var(--ink); font: inherit; font-size: 13px; font-weight: 700;
+  text-align: left; cursor: pointer; }
+.find-hit.hi, .find-hit:hover:not(:disabled) { border-color: var(--ink); background: #fff6d6; }
+.find-hit:disabled { opacity: 0.4; cursor: not-allowed; }
+.find-add { border-style: dashed; border-color: var(--ink-soft); font-weight: 800; }
+.find-row { display: flex; gap: 4px; }
+#find-input { flex: 1; min-width: 0; padding: 6px 9px; border: 2px solid var(--ink); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+#find-input:focus { outline: 3px solid rgba(74, 90, 138, 0.25); outline-offset: 0; }
+#find-close { flex: none; width: 30px; border: 2px solid var(--ink); border-radius: 8px; background: var(--card); color: var(--ink); font-size: 16px; line-height: 1; cursor: pointer; }
 /* rejection / guidance notes stay until the next action: make them easy to see */
 #places-prompt.pick-warn { padding: 6px 9px; border-radius: 8px; background: #fbe3df; }
+
+/* ---------- Tutorial coach (?tutorial=1): replaces the status text with one instruction at a time ---------- */
+.mode-board #coach { grid-area: 1 / -2; }
+#coach { padding: 10px 12px; border: 2px solid var(--ink); border-radius: 10px; background: #fff4cf; box-shadow: 2px 2px 0 var(--ink); }
+body.tutorial #status-bar:not(.error) { display: none; }
+body.tutorial #status-bar.error ~ #coach { display: none; }
+.coach-head { margin: 0 0 3px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8a5a00; }
+.coach-text { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.4; color: var(--ink); }
+.coach-hint { margin: 6px 0 0; font-size: 13px; line-height: 1.35; color: #5b4300; }
+#coach-show { margin-top: 6px; padding: 3px 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--card); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.coach-target { outline: 3px solid #e0a100; outline-offset: 2px; border-radius: 10px; }
+.coach-pulse { animation: coach-pulse 0.5s ease-in-out 3; }
+.coach-shake { animation: coach-shake 0.4s ease-in-out; }
+@keyframes coach-pulse { 50% { outline-color: #b3261e; outline-offset: 5px; } }
+@keyframes coach-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { .coach-pulse, .coach-shake { animation: none; } }
+
+.mode-board #unity-area.plant-room.has-frame { position:relative; overflow:hidden; }
+.practice-stage { position:absolute; left:50%; top:50%; width:960px; height:600px; }
+#unity-area.plant-room iframe { position:absolute; inset:0; width:960px; height:600px; transform-origin:top left; }
+#plant-targets { position:absolute; inset:0; }
+#plant-targets button { position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; cursor:pointer; }
+#plant-targets button:is(:hover,:focus-visible) { outline:2px solid white; border-radius:6px; }
+
+#plant-targets button span { display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%); padding:3px 8px; border-radius:5px; background:#242230; color:white; font:600 15px/1.3 system-ui; white-space:nowrap; pointer-events:none; }
+#plant-targets button:is(:hover,:focus-visible) span { display:block; }
+.plant-room #find-box { top:10px; bottom:auto; }
