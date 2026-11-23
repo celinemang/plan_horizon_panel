@@ -449,8 +449,8 @@ body.tutorial #status-bar.error ~ #coach { display: none; }
 @media (prefers-reduced-motion: reduce) { .coach-pulse, .coach-shake { animation: none; } }
 
 .mode-board #unity-area.plant-room.has-frame { position:relative; overflow:hidden; }
-.practice-stage { position:absolute; left:50%; top:50%; width:960px; height:600px; }
-#unity-area.plant-room iframe { position:absolute; inset:0; width:960px; height:600px; transform-origin:top left; }
+.practice-stage { position:absolute; inset:0; z-index:0; }   /* own stacking layer: the item buttons (z by size) stay under the replay view */
+#unity-area.plant-room iframe { position:absolute; inset:0; width:100%; height:100%; }
 #plant-targets { position:absolute; inset:0; }
 #plant-targets button { position:absolute; transform:translate(-50%,-50%); border:0; background:transparent; cursor:pointer; }
 #plant-targets button:is(:hover,:focus-visible) { outline:2px solid white; border-radius:6px; }
@@ -458,3 +458,60 @@ body.tutorial #status-bar.error ~ #coach { display: none; }
 #plant-targets button span { display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%); padding:3px 8px; border-radius:5px; background:#242230; color:white; font:600 15px/1.3 system-ui; white-space:nowrap; pointer-events:none; }
 #plant-targets button:is(:hover,:focus-visible) span { display:block; }
 .plant-room #find-box { top:10px; bottom:auto; }
+
+/* Practice messages: popup with OK, then it shrinks into the status bar (js: practiceMessage) */
+#practice-pop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 42, 51, 0.45); transition: background 380ms; }
+#practice-pop.leaving { background: rgba(43, 42, 51, 0); pointer-events: none; }
+.practice-pop-box { width: min(440px, 100%); padding: 20px 22px; border: 2px solid var(--ink); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); transform-origin: center; }
+#practice-pop-text { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.45; }
+#practice-pop-ok { min-width: 88px; background: var(--accent); color: #fff; }
+#status-bar.just-landed { animation: landed 700ms ease-out; }
+@keyframes landed { 0% { box-shadow: 0 0 0 4px var(--accent); } 100% { box-shadow: var(--shadow); } }
+@media (prefers-reduced-motion: reduce) { #status-bar.just-landed { animation: none; } }
+
+/* ---------- Robot replay timeline under the scene (js/replay.js) ----------
+   #scene-col = Unity view + the bar below it. In board mode the column takes the place the Unity view had;
+   --replay-h is the bar's height (+gap) so the scene still fits the window height. */
+#panel { --replay-h: 0px; }
+#panel:has(#replay-bar:not([hidden])) { --replay-h: 50px; }
+#scene-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mode-board #scene-col { grid-area: 1 / 1 / -1 / 2; align-self: start; justify-self: center; min-height: 0;
+  width: min(100%, calc((100vh - 20px - var(--replay-h)) * var(--unity-aspect, 1.058))); }
+.mode-board #scene-col > #unity-area { width: 100%; }
+@media (min-width: 1100px) {
+  .mode-board #main { grid-template-columns: minmax(0, calc((100vh - 20px - var(--replay-h)) * var(--unity-aspect, 1.058))) minmax(200px, 1fr) clamp(360px, 31vw, 420px); }
+  .mode-board #main:has(> #done-area[hidden]) { grid-template-columns: minmax(0, 1fr) clamp(360px, 31vw, 420px); }
+}
+@media (max-width: 860px) {
+  .mode-board #scene-col { width: min(100%, calc(60vh * var(--unity-aspect, 1.058))); margin: 0 auto; }
+  .mode-board #scene-col > #unity-area { width: 100%; }
+}
+
+#replay-bar { box-sizing: border-box; height: 42px; display: flex; align-items: center; gap: 8px; padding: 4px 8px;
+  border: 2px solid var(--ink); border-radius: 10px; background: var(--panel); box-shadow: 2px 2px 0 var(--ink); }
+#replay-bar[hidden] { display: none; }
+#replay-bar button { flex: none; height: 28px; padding: 0 10px; border: 2px solid var(--ink); border-radius: 8px; background: var(--card);
+  color: var(--ink); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: none; }
+#replay-bar button:disabled { opacity: 0.45; cursor: default; }
+.replay-play { width: 34px; padding: 0 !important; }
+.replay-track { position: relative; flex: 1; min-width: 60px; height: 32px; }
+.replay-range { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.replay-ticks { position: absolute; left: 8px; right: 8px; top: 0; height: 12px; pointer-events: none; }
+#replay-bar .replay-tick { position: absolute; top: 0; width: 10px; height: 10px; padding: 0; transform: translateX(-50%);
+  border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); pointer-events: auto; }
+#replay-bar .replay-tick.checkpoint { border-radius: 2px; background: #e0a100; }
+#replay-bar .replay-tick:is(:hover, :focus-visible) { transform: translateX(-50%) scale(1.35); }
+.replay-time { flex: none; min-width: 74px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; color: var(--ink-soft); }
+#replay-bar .replay-live { position: relative; padding-left: 20px; }
+#replay-bar .replay-live::before { content: ""; position: absolute; left: 7px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--ink-soft); }
+#replay-bar.is-rec .replay-live::before { background: #d33; animation: replay-rec 1.2s ease-in-out infinite; }
+#replay-bar:not(.is-live) .replay-live { background: #fff4cf; }
+@keyframes replay-rec { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { #replay-bar.is-rec .replay-live::before { animation: none; } }
+
+.replay-view { position: absolute; inset: 0; z-index: 1; background: #000; }
+.replay-view[hidden] { display: none; }
+.replay-view img { display: block; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.replay-badge { position: absolute; left: 10px; top: 10px; max-width: calc(100% - 20px); padding: 4px 10px; border: 2px solid var(--ink); border-radius: 999px;
+  background: #fff4cf; color: var(--ink); font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#unity-area.replaying { outline: 3px solid #e0a100; outline-offset: 2px; }

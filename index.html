@@ -15,7 +15,7 @@
     })();
   </script>
   <title>Plan Panel</title>
-  <link rel="stylesheet" href="css/style.css?v=plant26">
+  <link rel="stylesheet" href="css/style.css?v=replay2">
 </head>
 <body>
   <div id="panel" hidden>
@@ -25,7 +25,10 @@
       <div id="toolbox-cards"></div>
     </aside>
     <main id="main">
-      <section id="unity-area">Unity iframe placeholder</section>
+      <div id="scene-col">
+        <section id="unity-area">Unity iframe placeholder</section>
+        <div id="replay-bar" hidden aria-label="Robot replay timeline"></div>
+      </div>
       <div id="status-bar" hidden></div>
       <section id="done-area" hidden aria-labelledby="done-title">
         <div class="done-head"><h2 id="done-title">The robot has done so far</h2><span id="done-count"></span></div>
@@ -56,6 +59,12 @@
       </section>
     </main>
   </div>
+  <div id="practice-pop" hidden role="dialog" aria-modal="true" aria-labelledby="practice-pop-text">
+    <div class="practice-pop-box">
+      <p id="practice-pop-text"></p>
+      <div class="confirm-actions"><button id="practice-pop-ok" type="button">OK</button></div>
+    </div>
+  </div>
   <div id="confirm" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text confirm-count">
     <div class="confirm-box">
       <h3 id="confirm-title">Submit this plan?</h3>
@@ -69,6 +78,7 @@
   </div>
   <p id="idle-note" hidden>Waiting for the study to start. This panel is meant to be opened inside the survey (or through mock_parent.html when testing).</p>
   <script src="js/study-log.js?v=2"></script>
-  <script src="js/app.js?v=plant26"></script>
+  <script src="js/replay.js?v=1"></script>
+  <script src="js/app.js?v=replay2"></script>
 </body>
 </html>

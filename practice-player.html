@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Plant practice room</title>
+<style>html,body,canvas{width:100%;height:100%;margin:0;display:block}body{background:#242230}</style>
+<canvas id="room" tabindex="0"></canvas>
+<script src="practice_web/Build/practice_web.loader.js"></script>
+<script>
+const base = 'practice_web/Build/practice_web';
+const player = createUnityInstance(document.querySelector('canvas'), {
+  dataUrl:base+'.data', frameworkUrl:base+'.framework.js', codeUrl:base+'.wasm',
+  streamingAssetsUrl:'practice_web/StreamingAssets', companyName:'DefaultCompany', productName:'Plant practice', productVersion:'1'
+});
+window.addEventListener('message', async event => {
+  if (event.origin !== location.origin || event.source !== parent || event.data?.type !== 'practice_run') return;
+  try { (await player).SendMessage('Guided practice','RunCheckpoint',event.data.cp); }
+  catch { parent.postMessage({type:'practice_failed'},location.origin); }
+});
+</script></html>

@@ -67,28 +67,118 @@
 
   var plantPractice = new URLSearchParams(location.search).get('practice') === 'plant';
 
+  // Practice room items: every clickable object in the Unity practice scene (ids = ClickableItem.itemId).
+  // Only plant / brown_table / lamp are needed; the rest are there so hovering, clicking and searching work like the real task.
+  var PRACTICE_ITEMS = {
+    plant: 'Plant', brown_table: 'Brown table', lamp: 'Lamp', light_brown_table: 'Light brown table',
+    black_table_1: 'Black table 1', black_table_2: 'Black table 2', black_table_3: 'Black table 3',
+    small_table_1: 'Small table 1', small_table_2: 'Small table 2', heater: 'Heater', wardrobe: 'Wardrobe',
+    plate: 'Plate', bottles: 'Bottles'
+  };
+  var PRACTICE_POOLS = {
+    objects: ['plant', 'plate', 'bottles'],
+    surfaces: ['brown_table', 'light_brown_table', 'black_table_1', 'black_table_2', 'black_table_3', 'small_table_1', 'small_table_2'],
+    devices: ['lamp', 'heater'],
+    locations: Object.keys(PRACTICE_ITEMS)
+  };
+  var PRACTICE_DONE_1 = [{verb:'Move to',args:['plant']},{verb:'Grab',args:['plant']},
+                         {verb:'Move to',args:['brown_table']},{verb:'Place',args:['plant','brown_table']}];
+
+  // ---- Practice messages: a popup with OK. On OK the popup shrinks into the status bar, which then keeps the same text.
+  var practiceMsgQueue = [], practiceMsgOpen = false;
+  function practiceMessage(text) {
+    setStatus(text);
+    practiceMsgQueue.push(text);
+    if (!practiceMsgOpen) showNextPracticeMessage();
+  }
+  function showNextPracticeMessage() {
+    var text = practiceMsgQueue.shift();
+    if (text === undefined) { practiceMsgOpen = false; return; }
+    practiceMsgOpen = true;
+    var pop = $('practice-pop'), box = pop.querySelector('.practice-pop-box');
+    $('practice-pop-text').textContent = text;
+    box.style.transition = 'none'; box.style.transform = ''; box.style.opacity = '';
+    pop.classList.remove('leaving');
+    pop.hidden = false;
+    $('practice-pop-ok').focus();
+  }
+  function closePracticeMessage() {
+    var pop = $('practice-pop'), box = pop.querySelector('.practice-pop-box'), bar = $('status-bar');
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var done = function () {
+      pop.hidden = true;
+      bar.classList.remove('just-landed'); void bar.offsetWidth; bar.classList.add('just-landed');
+      showNextPracticeMessage();
+    };
+    if (reduce || bar.hidden) { done(); return; }
+    // fly back to where the text lives (the status bar)
+    var from = box.getBoundingClientRect(), to = bar.getBoundingClientRect();
+    var dx = (to.left + to.width / 2) - (from.left + from.width / 2), dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+    var sx = to.width / from.width, sy = to.height / from.height;
+    pop.classList.add('leaving');
+    box.style.transition = 'transform 380ms cubic-bezier(.4,0,.2,1), opacity 380ms ease-in';
+    box.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + sx + ',' + sy + ')';
+    box.style.opacity = '0.2';
+    var finished = false;
+    var end = function () { if (finished) return; finished = true; box.removeEventListener('transitionend', end); done(); };
+    box.addEventListener('transitionend', end);
+    setTimeout(end, 500);
+  }
+
+  // ---------- Robot replay (js/replay.js): records the scene while the robot moves, rewinds it on the bar below ----------
+  var replay = null;
+  function startReplay(frame, selector) {
+    if (!window.SceneReplay) return;
+    replay = window.SceneReplay.create($('unity-area'), $('replay-bar'), function (type, d) { if (studyLog) studyLog.record(type, d); });
+    replay.attach(frame, selector);
+  }
+  function replayRecording(on) { if (replay) replay.recording(on); }
+  function replayMark(label, kind) { if (replay) replay.mark(label, kind); }
+
   var practiceCP = 1;
+  function practiceStepUses(step, ids) {
+    return Object.keys(step.params).some(function (k) { return ids.indexOf(step.params[k]) !== -1; });
+  }
   function finishPracticePlan() {
     var steps = buildResponse();
     var actions = steps.filter(function (s) { return s.verb !== 'move_to'; });
-    var valid = practiceCP === 1
-      ? actions.length === 2 && actions[0].verb === 'grab' && actions[0].params.object === 'plant' &&
-        actions[1].verb === 'place' && actions[1].params.object === 'plant' && actions[1].params.location === 'brown_table'
-      : actions.length === 1 && actions[0].verb === 'turn_on' && actions[0].params.device === 'lamp';
-    if (!valid) {
-      setStatus(practiceCP === 1 ? 'Hint: grab the plant, then place the plant on the brown table. Edit your plan and submit again.' : 'Hint: choose Turn on, then select Lamp and submit again.');
-      return;
-    }
+    var hint = null;
     if (practiceCP === 1) {
+      var ok1 = actions.length === 2 && actions[0].verb === 'grab' && actions[0].params.object === 'plant' &&
+        actions[1].verb === 'place' && actions[1].params.object === 'plant' && actions[1].params.location === 'brown_table';
+      if (!ok1) hint = 'Hint: grab the plant, then place the plant on the brown table. Edit your plan and submit again.';
+    } else {
+      var leftover = steps.some(function (s) { return practiceStepUses(s, ['plant', 'brown_table']); });
+      var ok2 = !leftover && actions.length === 1 && actions[0].verb === 'turn_on' && actions[0].params.device === 'lamp';
+      if (!ok2) hint = leftover
+        ? 'Hint: the robot already moved the plant. Delete those steps from your plan (X button), then add Turn on and select Lamp.'
+        : 'Hint: choose Turn on, then select Lamp and submit again.';
+    }
+    if (hint) { practiceMessage(hint); return; }
+    submitted = true;
+    render(); setLocked(true);
+    practiceMessage('Great job! Watch the robot carry out your plan.');
+    replayRecording(true);
+    document.querySelector('.plant-room iframe').contentWindow.postMessage({type:'practice_run',cp:practiceCP},location.origin);
+  }
+
+  function practiceArrived() {
+    replayRecording(false);
+    replayMark(practiceCP === 1 ? 'Place Plant on Brown table' : 'Turn on Lamp');
+    if (practiceCP === 1) {
+      renderDone(PRACTICE_DONE_1);
       practiceCP = 2;
       activeSlot = null;
-      startCheckpoint({trial_id:'plant-practice', checkpoint_id:'practice2', entities:{}});
-      setStatus('Great job! Practice 2 of 2: enter a plan to turn on the lamp.');
+      trial.checkpoint_id = 'practice2';
+      startTrial(null, true);   // keep the plan: the participant deletes the steps that are already done
+      setLocked(false);
+      render();
+      practiceMessage('Great job! Practice 2: enter a plan to turn on the lamp.');
       return;
     }
-    submitted = true;
-    render(); setLocked(true); $('plant-targets').hidden = true;
-    setStatus('Great job! Practice complete. You can explore the room.');
+    renderDone(PRACTICE_DONE_1.concat([{verb:'Move to',args:['lamp']},{verb:'Turn on',args:['lamp']}]));
+    render(); setLocked(true);
+    practiceMessage('Great job! Practice complete. You can explore the room.');
     if (new URLSearchParams(location.search).has('pid')) {
       var next = document.createElement('button');
       next.textContent = 'Start main study';
@@ -102,45 +192,67 @@
     }
   }
 
+  function addPracticeTarget(layer, id) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.id = id;
+    button.style.visibility = 'hidden';
+    var name = labelFor(id);
+    button.setAttribute('aria-label', name);
+    var label = document.createElement('span');
+    label.textContent = name;
+    button.appendChild(label);
+    button.onclick = function () { onPracticeItemClicked(id); };
+    layer.appendChild(button);
+    return button;
+  }
+
+  // Same feedback as clicking in the real task: fill the blank, or say why it does not fit.
+  function onPracticeItemClicked(id) {
+    if (!editable()) return;
+    var target = currentTarget();
+    if (!target) { pickNote('Choose an action below first, then click ' + labelFor(id) + ' in the room.'); return; }
+    if (fillSlot(target, id)) { markFirstDrag(); return; }
+    pickNote(labelFor(id) + ' does not fit step ' + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ').');
+  }
+
   function openPlantRoom() {
     var area = $('unity-area');
     area.textContent = '';
     area.classList.add('has-frame', 'plant-room');
     var frame = document.createElement('iframe');
     frame.title = 'Plant practice room';
-    frame.src = 'practice_web/index.html';
+    frame.src = 'practice-player.html';
+    window.addEventListener('message', function (event) {
+      if (event.origin !== location.origin || event.source !== frame.contentWindow) return;
+      var hit = event.data;
+      if (hit && hit.type === 'practice_target') {
+        if (!Object.prototype.hasOwnProperty.call(PRACTICE_ITEMS, hit.id)) return;   // e.g. walls: not an item
+        var button = Array.from(layer.children).find(function (el) { return el.dataset.id === hit.id; }) || addPracticeTarget(layer, hit.id);
+        // smaller things on top: a plate on a table, a lamp on a rug must win the hover/click over the furniture under them
+        Object.assign(button.style, {left:hit.x+'%',top:hit.y+'%',width:hit.w+'%',height:hit.h+'%',visibility:'visible',
+          zIndex:String(Math.max(1, 10000 - Math.round(hit.w * hit.h)))});
+        return;
+      }
+      if (hit && hit.type === 'practice_failed') { setStatus('The practice room could not load. Please refresh and try again.',true); return; }
+      if (!submitted) return;
+      if (hit && hit.type === 'practice_arrived' && hit.cp === practiceCP) practiceArrived();
+    });
     // Keep Unity and its hit regions in a single camera coordinate system.
     var stage = document.createElement('div');
     stage.className = 'practice-stage';
     area.appendChild(stage);
     stage.appendChild(frame);
-    frame.onload = function () {
-      var css = frame.contentDocument.createElement('style');
-      css.textContent = '#unity-footer{display:none} #unity-container.unity-desktop{inset:0;transform:none} #unity-canvas{display:block}';
-      frame.contentDocument.head.appendChild(css);
-    };
-    new ResizeObserver(function () {
-      var scale = Math.min(area.clientWidth / 960, area.clientHeight / 600);
-      stage.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
-    }).observe(area);
+    startReplay(frame, '#room');
     var layer = document.createElement('div');
     layer.id = 'plant-targets';
     stage.appendChild(layer);
-    // Positions in the fixed 960 by 600 practice camera view.
-    [['plant',74,14,6,11], ['brown_table',62,70,19,22], ['lamp',71,95,6,10]].forEach(function (spot) {
-      var button = document.createElement('button');
-      button.type = 'button';
-      button.setAttribute('aria-label', vocab.labels[spot[0]]);
-      var label = document.createElement('span');
-      label.textContent = vocab.labels[spot[0]];
-      button.appendChild(label);
-      Object.assign(button.style, {left:spot[1]+'%', top:spot[2]+'%', width:spot[3]+'%', height:spot[4]+'%'});
-      button.onclick = function () { fillFromTile(spot[0]); };
-      layer.appendChild(button);
-    });
+    // the three task items exist before Unity reports positions, so tests and keyboard users can reach them
+    ['plant','brown_table','lamp'].forEach(function (id) { addPracticeTarget(layer, id); });
+    $('practice-pop-ok').addEventListener('click', closePracticeMessage);
     startCheckpoint({trial_id:'plant-practice', checkpoint_id:'practice', entities:{}});
     renderDone([]);
-    setStatus('Practice 1 of 2: move the plant to the brown table. Build your plan and submit it.');
+    practiceMessage('Practice 1: move the plant to the brown table. Build your plan and submit it.');
   }
 
   function editable() { return !!metrics && !locked && !submitted; }
@@ -347,6 +459,7 @@
         submitted_utc: submittedUtc });
       setLocked(true);
       setStatus('Thanks! Watch the robot...');
+      replayRecording(true);
     } else {
       sendToParent({
         type: 'response_submitted',
@@ -482,6 +595,7 @@
       plan_step_count: d.plan_step_count
     });
     setStatus('Watch the robot...');
+    replayRecording(true);
   }
 
   function onUnityCheckpoint(d) {
@@ -491,6 +605,8 @@
     }
     if (d.index <= unity.lastIndex) return;   // 중복/되돌아간 체크포인트는 무시
     unity.lastIndex = d.index;
+    replayRecording(false);
+    replayMark('robot stopped (prediction ' + d.index + ')', 'checkpoint');
     unity.cp = {
       index: d.index,
       total: d.total,
@@ -643,11 +759,15 @@
     if (doneShown.length >= 200) return;
     $('done-area').hidden = false;
     appendDone(d.step, true);
+    var row = $('done-list').lastElementChild;
+    if (row) replayMark((row.querySelector('.done-verb').textContent + ' ' + row.querySelector('.done-what').textContent)
+      .replace(/\s+/g, ' ').replace(/\b([\w ]+?) \1\b/g, '$1').trim());   // "Grab Pot Pot" -> "Grab Pot"
   }
 
   function onUnityComplete(d) {
     if (unity.completeSeen) return;
     unity.completeSeen = true;
+    replayRecording(false);
     tutorialEvent('complete');
     sendToParent({ type: 'run_complete', trial_id: unity.pid, run_log: d.run_log });
     setLocked(true);
@@ -656,6 +776,7 @@
   }
 
   function onUnityError(message) {
+    replayRecording(false);
     sendToParent({ type: 'unity_error', trial_id: unity.pid, message: message });
     setLocked(true);
     setStatus('Something went wrong: ' + message, true);
@@ -688,6 +809,7 @@
     area.textContent = '';
     area.classList.add('has-frame');
     area.appendChild(frame);
+    startReplay(frame, '#unity-canvas');
 
     var cap = parseInt(config.maxSteps, 10);
     unity = {
@@ -1668,7 +1790,9 @@
         ? (inUnity ? 'Click an object in the simulation for step ' : 'Tap a picture for step ') + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ')' + (inUnity ? '.' : ', or drag it onto a blank.')
         : insertAfter !== null
           ? 'The next action will be added after step ' + (insertAfter + 1) + '. Click + again to add at the end.'
-          : 'Drag cards or use the arrows to change the order.';
+          : plantPractice && practiceCP === 2
+            ? 'You can delete your plan (\u00d7) and rebuild it. Drag cards or use the arrows to change the order.'
+            : 'Drag cards or use the arrows to change the order.';
     var grid = $('places-grid');
     grid.textContent = '';
     grid.hidden = inUnity;   // Unity에서 고르면 그림 타일은 숨긴다
@@ -1919,8 +2043,8 @@
   ]).then(function (res) {
     vocab = res[0];
     if (plantPractice) {
-      vocab.pools = {locations:['plant','brown_table','lamp'], objects:['plant'], surfaces:['brown_table'], devices:['lamp']};
-      vocab.labels = {plant:'Plant',brown_table:'Brown table',lamp:'Lamp'};
+      vocab.pools = PRACTICE_POOLS;
+      vocab.labels = PRACTICE_ITEMS;
       vocab.aliases = {}; vocab.images = {}; vocab.rules = {};
     }
     tutorialCfg = res[2];
