@@ -499,7 +499,7 @@ body.tutorial #status-bar.error ~ #coach { display: none; }
 .replay-ticks { position: absolute; left: 8px; right: 8px; top: 0; height: 12px; pointer-events: none; }
 #replay-bar .replay-tick { position: absolute; top: 0; width: 10px; height: 10px; padding: 0; transform: translateX(-50%);
   border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); pointer-events: auto; }
-#replay-bar .replay-tick.checkpoint { border-radius: 2px; background: #e0a100; }
+#replay-bar .replay-tick.checkpoint { background: #d33; }   /* robot stopped for a prediction: red dot */
 #replay-bar .replay-tick:is(:hover, :focus-visible) { transform: translateX(-50%) scale(1.35); }
 .replay-time { flex: none; min-width: 74px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; color: var(--ink-soft); }
 #replay-bar .replay-live { position: relative; padding-left: 20px; }
@@ -515,3 +515,28 @@ body.tutorial #status-bar.error ~ #coach { display: none; }
 .replay-badge { position: absolute; left: 10px; top: 10px; max-width: calc(100% - 20px); padding: 4px 10px; border: 2px solid var(--ink); border-radius: 999px;
   background: #fff4cf; color: var(--ink); font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #unity-area.replaying { outline: 3px solid #e0a100; outline-offset: 2px; }
+
+/* Practice guide: game-style "click here" bubble (js/app.js updateGuide) */
+#guide { position: fixed; z-index: 70; pointer-events: none; max-width: 260px; padding: 8px 14px; border-radius: 12px;
+  background: #ffd84d; color: #2b2a33; font: 700 15px/1.3 system-ui, sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.28);
+  animation: guide-bob 1s ease-in-out infinite; }
+#guide::before { content: ''; position: absolute; left: var(--arrow-x, 50%); bottom: 100%; transform: translateX(-50%);
+  border: 9px solid transparent; border-bottom-color: #ffd84d; }
+#guide.above::before { bottom: auto; top: 100%; border-bottom-color: transparent; border-top-color: #ffd84d; }
+#guide.above { animation-name: guide-bob-up; }
+@keyframes guide-bob { 50% { transform: translateY(6px); } }
+@keyframes guide-bob-up { 50% { transform: translateY(-6px); } }
+.guide-target { outline: 3px solid #ffb800 !important; outline-offset: 3px; border-radius: 10px; animation: guide-ring 1s ease-in-out infinite; }
+@keyframes guide-ring { 50% { outline-offset: 7px; outline-color: #ff8a00; } }
+#plant-targets button.guide-target span { display: block; }
+@media (prefers-reduced-motion: reduce) { #guide, .guide-target { animation: none; } }
+#guide.tour { pointer-events: auto; max-width: 320px; animation: none; }
+#guide .guide-next { display: block; margin: 8px 0 0 auto; padding: 4px 14px; border: 0; border-radius: 8px; background: #2b2a33; color: #fff; font: 700 14px/1.3 system-ui, sans-serif; cursor: pointer; }
+#guide .guide-next[hidden] { display: none; }
+#guide.inside::before { display: none; }
+#guide .guide-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+#guide .guide-btns[hidden] { display: none; }
+#guide .guide-btns button { display: inline-block; margin: 0; padding: 4px 14px; border-radius: 8px; font: 700 14px/1.3 system-ui, sans-serif; cursor: pointer; }
+#guide .guide-btns .guide-next { border: 0; background: #2b2a33; color: #fff; }
+#guide .guide-btns .guide-back { border: 2px solid #2b2a33; background: transparent; color: #2b2a33; }
+#guide .guide-btns button[hidden] { display: none; }

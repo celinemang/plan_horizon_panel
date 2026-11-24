@@ -8,6 +8,6 @@
   "targetOrigin": "https://gmu.pdx1.qualtrics.com",
   "unityUrl": "unity/index.html",
   "inputMode": "board",
-  "carryOverPlan": true,
+  "carryOverPlan": false,
   "pickInUnity": true
 }

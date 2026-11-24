@@ -85,18 +85,20 @@
                          {verb:'Move to',args:['brown_table']},{verb:'Place',args:['plant','brown_table']}];
 
   // ---- Practice messages: a popup with OK. On OK the popup shrinks into the status bar, which then keeps the same text.
-  var practiceMsgQueue = [], practiceMsgOpen = false;
-  function practiceMessage(text) {
+  var practiceMsgQueue = [], practiceMsgOpen = false, practiceMsgNow = null;
+  // opts: { ok: button label (default OK), then: called after the popup closes }
+  function practiceMessage(text, opts) {
     setStatus(text);
-    practiceMsgQueue.push(text);
+    practiceMsgQueue.push({ text: text, ok: opts && opts.ok, then: opts && opts.then });
     if (!practiceMsgOpen) showNextPracticeMessage();
   }
   function showNextPracticeMessage() {
-    var text = practiceMsgQueue.shift();
-    if (text === undefined) { practiceMsgOpen = false; return; }
-    practiceMsgOpen = true;
+    var msg = practiceMsgQueue.shift();
+    if (msg === undefined) { practiceMsgOpen = false; practiceMsgNow = null; return; }
+    practiceMsgOpen = true; practiceMsgNow = msg;
     var pop = $('practice-pop'), box = pop.querySelector('.practice-pop-box');
-    $('practice-pop-text').textContent = text;
+    $('practice-pop-text').textContent = msg.text;
+    $('practice-pop-ok').textContent = msg.ok || 'OK';
     box.style.transition = 'none'; box.style.transform = ''; box.style.opacity = '';
     pop.classList.remove('leaving');
     pop.hidden = false;
@@ -105,9 +107,11 @@
   function closePracticeMessage() {
     var pop = $('practice-pop'), box = pop.querySelector('.practice-pop-box'), bar = $('status-bar');
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var closing = practiceMsgNow;
     var done = function () {
       pop.hidden = true;
       bar.classList.remove('just-landed'); void bar.offsetWidth; bar.classList.add('just-landed');
+      if (closing && closing.then) { practiceMsgOpen = false; practiceMsgNow = null; closing.then(); if (practiceMsgOpen) return; }
       showNextPracticeMessage();
     };
     if (reduce || bar.hidden) { done(); return; }
@@ -140,20 +144,11 @@
     return Object.keys(step.params).some(function (k) { return ids.indexOf(step.params[k]) !== -1; });
   }
   function finishPracticePlan() {
-    var steps = buildResponse();
-    var actions = steps.filter(function (s) { return s.verb !== 'move_to'; });
     var hint = null;
-    if (practiceCP === 1) {
-      var ok1 = actions.length === 2 && actions[0].verb === 'grab' && actions[0].params.object === 'plant' &&
-        actions[1].verb === 'place' && actions[1].params.object === 'plant' && actions[1].params.location === 'brown_table';
-      if (!ok1) hint = 'Hint: grab the plant, then place the plant on the brown table. Edit your plan and submit again.';
-    } else {
-      var leftover = steps.some(function (s) { return practiceStepUses(s, ['plant', 'brown_table']); });
-      var ok2 = !leftover && actions.length === 1 && actions[0].verb === 'turn_on' && actions[0].params.device === 'lamp';
-      if (!ok2) hint = leftover
-        ? 'Hint: the robot already moved the plant. Delete those steps from your plan (X button), then add Turn on and select Lamp.'
-        : 'Hint: choose Turn on, then select Lamp and submit again.';
-    }
+    if (!practicePlanIs(PRACTICE_GOALS[practiceCP]))
+      hint = practiceCP === 1
+        ? 'Hint: the robot has to walk first. Move to the plant, grab the plant, move to the brown table, then place the plant on the brown table. Edit your plan and submit again.'
+        : 'Hint: the robot has to walk to the lamp first. Move to the lamp, then turn on the lamp. Edit your plan and submit again.';
     if (hint) { practiceMessage(hint); return; }
     submitted = true;
     render(); setLocked(true);
@@ -164,30 +159,38 @@
 
   function practiceArrived() {
     replayRecording(false);
-    replayMark(practiceCP === 1 ? 'Place Plant on Brown table' : 'Turn on Lamp');
+    replayMark(practiceCP === 1 ? 'Place Plant on Brown table' : 'Turn on Lamp', 'checkpoint');   // red dot, like the real study
     if (practiceCP === 1) {
       renderDone(PRACTICE_DONE_1);
       practiceCP = 2;
       activeSlot = null;
       trial.checkpoint_id = 'practice2';
-      startTrial(null, true);   // keep the plan: the participant deletes the steps that are already done
+      startTrial(null, false);   // practice 2 starts with an empty plan
       setLocked(false);
       render();
-      practiceMessage('Great job! Practice 2: enter a plan to turn on the lamp.');
+      // short tour of the two areas that just filled up, then practice 2 on their own (no pointer)
+      startGuideTour([
+        { el: $('done-area'), text: 'Great job! This list shows what the robot has done so far. It grows every time the robot stops.' },
+        { el: $('replay-bar'), text: 'This is the replay bar. Press \u25b6 or drag it to rewind and watch what the robot did. Red dots mark where it stopped. Click Live to come back.' }
+      ], function () { practiceMessage('Now it\u2019s your turn! Try Practice 2 on your own: make a plan to turn on the lamp and submit it.', { ok: 'Let\u2019s go' }); },
+      'Practice 1 done! Read the yellow tips and click Next.');
       return;
     }
     renderDone(PRACTICE_DONE_1.concat([{verb:'Move to',args:['lamp']},{verb:'Turn on',args:['lamp']}]));
     render(); setLocked(true);
-    practiceMessage('Great job! Practice complete. You can explore the room.');
-    if (new URLSearchParams(location.search).has('pid')) {
-      var next = document.createElement('button');
-      next.textContent = 'Start main study';
-      next.onclick = function () {
-        var url = new URL(location.href);
-        url.searchParams.delete('practice');
-        url.searchParams.set('practice_done','1');
-        location.replace(url.href);
-      };
+    var goMain = function () {
+      var url = new URL(location.href);
+      url.searchParams.delete('practice');
+      url.searchParams.set('practice_done','1');
+      location.replace(url.href);
+    };
+    var inStudy = new URLSearchParams(location.search).has('pid');
+    practiceMessage('Great job! You finished the practice. Now let\u2019s go to the main study.',
+      inStudy ? { ok: 'Go to main study', then: goMain } : { ok: 'OK' });
+    if (inStudy) {
+      var next = document.createElement('button');   // in case the popup was closed some other way
+      next.textContent = 'Go to main study';
+      next.onclick = goMain;
       $('status-bar').append(' ',next);
     }
   }
@@ -214,6 +217,121 @@
     if (!target) { pickNote('Choose an action below first, then click ' + labelFor(id) + ' in the room.'); return; }
     if (fillSlot(target, id)) { markFirstDrag(); return; }
     pickNote(labelFor(id) + ' does not fit step ' + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ').');
+  }
+
+
+  // ---------- Practice guide: a game-style "click here" bubble that points at the next thing to click ----------
+  // Worked out again from the plan each time (render + a 250 ms timer), so it follows whatever the participant does.
+  // The correct plan, step by step (the robot walks first: Move to, then the action)
+  var PRACTICE_GOALS = {
+    1: [{verb:'move_to', args:['plant']}, {verb:'grab', args:['plant']},
+        {verb:'move_to', args:['brown_table']}, {verb:'place', args:['plant','brown_table']}],
+    2: [{verb:'move_to', args:['lamp']}, {verb:'turn_on', args:['lamp']}]
+  };
+  function practicePlanIs(goals) {
+    return slots.length === goals.length && goals.every(function (g, i) {
+      return slots[i].verb === g.verb && verbsById[g.verb].params.every(function (p, k) { return slots[i].params[p.name] === g.args[k]; });
+    });
+  }
+  var guideEl = null, guideOn = null, guideTour = [], guideTourAt = 0, guideTourDone = null, guideTourLock = true;
+  function tourEl(t) { return typeof t.el === 'function' ? t.el() : t.el; }
+  // A tour shows one explanation at a time with Back / Next. lock: the plan is locked meanwhile (default true).
+  function startGuideTour(items, done, status, lock) {
+    guideTour = items.filter(function (t) { var e = tourEl(t); return e && !e.hidden; });
+    guideTourAt = 0; guideTourDone = done; guideTourLock = lock !== false;
+    if (guideTour.length) {
+      if (guideTourLock) setLocked(true);
+      if (status) setStatus(status);
+      tourEl(guideTour[0]).scrollIntoView({ block: 'nearest' });
+    } else if (done) done();
+    updateGuide();
+  }
+  function stepGuideTour(d) {
+    guideTourAt = Math.max(0, guideTourAt + d);
+    if (guideTourAt < guideTour.length) { var e = tourEl(guideTour[guideTourAt]); if (e) e.scrollIntoView({ block: 'nearest' }); updateGuide(); return; }
+    guideTour = []; guideTourAt = 0;
+    if (guideTourLock) { setLocked(false); render(); }
+    var done = guideTourDone; guideTourDone = null;
+    updateGuide();
+    if (done) done();
+  }
+  var searchTipShown = false;
+  function guideRow(i) { return document.querySelectorAll('#timeline .step-row')[i] || null; }
+  function guideItem(id, text) {
+    return { el: document.querySelector('#plant-targets button[data-id="' + id + '"]'), text: text || ('Click the ' + labelFor(id) + ' in the room, or type "' + labelFor(id) + '" in the blank'), scene: true };
+  }
+  function practiceGuideTarget() {
+    if (!$('practice-pop').hidden) return null;
+    if (guideTour.length && !guideTourLock && !tourEl(guideTour[guideTourAt])) stepGuideTour(1);   // its box is gone (they went on)
+    if (guideTour.length) return { el: tourEl(guideTour[guideTourAt]), text: guideTour[guideTourAt].text, tour: true };
+    // the first time a step's blank turns into a search box, explain it (once)
+    var sb = document.querySelector('#timeline .slot-inline-search');
+    if (practiceCP === 1 && sb && !searchTipShown) {
+      searchTipShown = true;
+      startGuideTour([{ el: function () { return document.querySelector('#timeline .slot-inline-search'); },
+        text: 'Tip: this blank is a search box. You can type a name here (for example \u201cPlant\u201d) and pick it from the list, instead of clicking it in the room.' }],
+        null, null, false);
+      return { el: sb, text: guideTour[0].text, tour: true };
+    }
+    if (practiceCP !== 1) return null;   // practice 2: the participant does it alone (wrong plans still get a hint popup)
+    if (confirmOpen) return { el: $('confirm-yes'), text: 'Click to send your plan' };
+    if (!editable()) return null;
+    var goals = PRACTICE_GOALS[practiceCP] || [], i, t = currentTarget();
+    var remove = function (idx, text) { var r = guideRow(idx); return { el: r && r.querySelector('.step-remove'), text: text }; };
+    for (i = 0; i < goals.length; i++) {
+      var g = goals[i];
+      if (i >= slots.length) return { el: document.querySelector('#verb-bar .verb-chip[data-verb="' + g.verb + '"]'), text: 'Click ' + verbsById[g.verb].label };
+      if (slots[i].verb !== g.verb) return remove(i, 'This step is not right here. Click \u00d7 to delete it');
+      var ps = verbsById[g.verb].params;
+      for (var p = 0; p < ps.length; p++) {
+        var val = slots[i].params[ps[p].name], ctl = guideRow(i) && guideRow(i).querySelectorAll('.slot-control')[p];
+        if (val && val !== g.args[p]) return { el: ctl, text: 'Not this one. Click to change it' };
+        if (!val) {
+          if (t && t.index === i && t.param === ps[p].name)
+            return guideItem(g.args[p], g.verb === 'move_to' ? 'The robot walks there first: click the ' + labelFor(g.args[p]) + ' in the room, or type \u201c' + labelFor(g.args[p]) + '\u201d in the blank' : null);
+          return { el: ctl, text: 'Click this blank' };
+        }
+      }
+    }
+    if (slots.length > goals.length) return remove(goals.length, 'Not needed. Click \u00d7 to delete it');
+    return { el: $('submit-btn'), text: 'Click Submit' };
+  }
+  function updateGuide() {
+    if (!plantPractice) return;
+    if (!guideEl) {
+      guideEl = document.createElement('div');
+      guideEl.id = 'guide';
+      guideEl.setAttribute('aria-live', 'polite');
+      guideEl.innerHTML = '<span class="guide-text"></span><span class="guide-btns"><button type="button" class="guide-back">Back</button>' +
+        '<button type="button" class="guide-next">Next</button></span>';
+      guideEl.querySelector('.guide-next').addEventListener('click', function () { stepGuideTour(1); });
+      guideEl.querySelector('.guide-back').addEventListener('click', function () { stepGuideTour(-1); });
+      document.body.appendChild(guideEl);
+    }
+    var g = practiceGuideTarget();
+    var r = g && g.el && g.el.getBoundingClientRect();
+    var visible = r && r.width > 0 && r.height > 0 && (!g.scene || g.el.style.visibility !== 'hidden');
+    if (guideOn && guideOn !== (visible ? g.el : null)) guideOn.classList.remove('guide-target');
+    if (!visible) { guideEl.hidden = true; guideOn = null; return; }
+    guideOn = g.el;
+    g.el.classList.add('guide-target');
+    var txt = guideEl.querySelector('.guide-text');
+    if (txt.textContent !== g.text) txt.textContent = g.text;
+    guideEl.querySelector('.guide-btns').hidden = !g.tour;
+    guideEl.querySelector('.guide-back').hidden = guideTourAt === 0;
+    guideEl.classList.toggle('tour', !!g.tour);
+    guideEl.hidden = false;
+    var w = guideEl.offsetWidth, h = guideEl.offsetHeight, gap = 14;
+    var fitsBelow = r.bottom + gap + h + 8 <= window.innerHeight, fitsAbove = r.top - gap - h >= 8;
+    var inside = !fitsBelow && !fitsAbove && r.height > h + 40;   // e.g. the whole scene: sit inside it, near the bottom
+    var below = fitsBelow || !fitsAbove;
+    var cx = r.left + r.width / 2;
+    var left = Math.max(8, Math.min(cx - w / 2, window.innerWidth - w - 8));
+    guideEl.style.left = left + 'px';
+    guideEl.style.top = (inside ? Math.min(r.bottom, window.innerHeight) - h - 24 : below ? r.bottom + gap : r.top - gap - h) + 'px';
+    guideEl.classList.toggle('inside', inside);
+    guideEl.style.setProperty('--arrow-x', Math.max(14, Math.min(cx - left, w - 14)) + 'px');
+    guideEl.classList.toggle('above', !below);
   }
 
   function openPlantRoom() {
@@ -252,7 +370,19 @@
     $('practice-pop-ok').addEventListener('click', closePracticeMessage);
     startCheckpoint({trial_id:'plant-practice', checkpoint_id:'practice', entities:{}});
     renderDone([]);
-    practiceMessage('Practice 1: move the plant to the brown table. Build your plan and submit it.');
+    // welcome popup -> tour of the four areas -> the task -> practice 1 with the pointer
+    setLocked(true);
+    practiceMessage('Welcome! First, a short practice shows you how this screen works. Are you ready to start?', { ok: 'I\u2019m ready', then: function () {
+      startGuideTour([
+        { el: area, text: 'This is the room where the robot works. Hover over a thing to see its name. Click it to put it in your plan.' },
+        { el: $('done-area'), text: 'The robot has done so far: the steps the robot has already finished. It is empty because the robot has not started yet.' },
+        { el: $('plan-box') || $('timeline-area'), text: 'Your plan: here you enter the steps you think the robot will do. Pick an action, then fill its blank: click the object in the room, or type its name in the blank to search. Press Submit when you are done.' },
+        { el: $('replay-bar'), text: 'Timeline: once the robot has moved, press \u25b6 or drag this bar to rewind and watch what it did.' }
+      ], function () {
+        practiceMessage('Your task: move the plant to the brown table. Build your plan and submit it.', { ok: 'Start' });
+      }, 'Read the yellow tips and click Next.');
+    } });
+    setInterval(updateGuide, 250);   // follows Unity positions, scrolling, popups and the confirm box
   }
 
   function editable() { return !!metrics && !locked && !submitted; }
@@ -620,7 +750,8 @@
       utc: d.utc
     };
     if (studyLog) studyLog.record('unity_checkpoint', d);
-    var keep = config.carryOverPlan !== false && d.index > 1 && slots.length > 0;
+    // main study: the plan is cleared at every stop (carryOverPlan false). The UI tutorial keeps it: its step 8 practises deleting a step.
+    var keep = (config.carryOverPlan !== false || tutorialMode) && d.index > 1 && slots.length > 0;
     startTrial(unity.maxSteps, keep);
     // 공변량: 보여 준 드론(방문) 수와 그중 서로 다른 장소 수
     var places = Array.isArray(d.drone_places_shown) ? d.drone_places_shown : [];
@@ -643,7 +774,7 @@
       ? stopped + 'What will the robot do next? Feel free to use any actions that are applicable, or delete anything that is not applicable anymore. Then submit.' + droneHint
       : d.index === 1
         ? stopped + 'Enter your first prediction of its WHOLE plan, from the very first step, then submit.' + droneHint
-        : stopped + 'What will the robot do next? Feel free to use any actions that are applicable, or delete anything that is not applicable anymore. Then submit.' + droneHint);
+        : 'Predict and enter the steps you think the robot will do NEXT, from where it is now, then submit.');
     $('status-bar').dataset.checkpoint = String(d.index);
     tutorialEvent('checkpoint:' + d.index);   // 번호는 화면에 보이지 않는다 (테스트용 표식)
   }
@@ -1591,7 +1722,7 @@
       });
     }
     if (box.parentNode !== $('unity-area')) $('unity-area').appendChild(box);   // floats over the bottom-right corner of the scene
-    box.hidden = !pickInUnity();
+    box.hidden = !pickInUnity() || plantPractice;   // practice: only the search box in the step's blank
     box.classList.toggle('open', find.open);
     $('find-open').disabled = !editable();
     if (!editable() && find.open) closeFind();
@@ -1790,7 +1921,7 @@
         ? (inUnity ? 'Click an object in the simulation for step ' : 'Tap a picture for step ') + (target.index + 1) + ' (' + verbsById[slots[target.index].verb].label + ')' + (inUnity ? '.' : ', or drag it onto a blank.')
         : insertAfter !== null
           ? 'The next action will be added after step ' + (insertAfter + 1) + '. Click + again to add at the end.'
-          : plantPractice && practiceCP === 2
+          : false
             ? 'You can delete your plan (\u00d7) and rebuild it. Drag cards or use the arrows to change the order.'
             : 'Drag cards or use the arrows to change the order.';
     var grid = $('places-grid');
@@ -1965,6 +2096,7 @@
     updateSubmit();
     updateHistoryButtons();
     if (coach) coach.paint();
+    updateGuide();
     // Position portal menus only after their anchor buttons have entered layout.
     document.querySelectorAll('.slot-search-portal').forEach(function (menu) {
       if (menu._slotAnchor && menu._slotAnchor.isConnected) positionSlotSearch(menu, menu._slotAnchor);

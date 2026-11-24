@@ -174,7 +174,8 @@
       "food",
       "lettuce",
       "pan",
-      "water"
+      "water",
+      "coffee"
     ],
     "devices": [
       "grinder",
@@ -218,7 +219,8 @@
     "fridge": "Fridge",
     "microwave": "Microwave",
     "dishwasher": "Dishwasher",
-    "water": "Water"
+    "water": "Water",
+    "coffee": "Coffee"
   },
   "images": {
     "locations": {
@@ -260,10 +262,6 @@
     "cup": {
       "label": "Cup",
       "id": "mug"
-    },
-    "coffee_machine": {
-      "label": "Coffee machine",
-      "id": "maker"
     },
     "faucet": {
       "label": "Faucet",
