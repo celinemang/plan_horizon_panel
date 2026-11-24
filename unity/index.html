@@ -57,11 +57,12 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/pixel_art_sim.loader.js";
+      var V = "?v=" + (new URLSearchParams(location.search).get("v") || "0");   // build version from the panel (cache busting)
+      var loaderUrl = buildUrl + "/pixel_art_sim.loader.js" + V;
       var config = {
-        dataUrl: buildUrl + "/pixel_art_sim.data",
-        frameworkUrl: buildUrl + "/pixel_art_sim.framework.js",
-        codeUrl: buildUrl + "/pixel_art_sim.wasm",
+        dataUrl: buildUrl + "/pixel_art_sim.data" + V,
+        frameworkUrl: buildUrl + "/pixel_art_sim.framework.js" + V,
+        codeUrl: buildUrl + "/pixel_art_sim.wasm" + V,
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "moderninteriors-win",

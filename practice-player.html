@@ -1,11 +1,12 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Plant practice room</title>
 <style>html,body,canvas{width:100%;height:100%;margin:0;display:block}body{background:#242230}</style>
 <canvas id="room" tabindex="0"></canvas>
-<script src="practice_web/Build/practice_web.loader.js"></script>
+<script>const V = '?v=' + (new URLSearchParams(location.search).get('v') || '0');   // build version from the panel (cache busting)
+document.write('<script src="practice_web/Build/practice_web.loader.js' + V + '"><\/script>');</script>
 <script>
 const base = 'practice_web/Build/practice_web';
 const player = createUnityInstance(document.querySelector('canvas'), {
-  dataUrl:base+'.data', frameworkUrl:base+'.framework.js', codeUrl:base+'.wasm',
+  dataUrl:base+'.data'+V, frameworkUrl:base+'.framework.js'+V, codeUrl:base+'.wasm'+V,
   streamingAssetsUrl:'practice_web/StreamingAssets', companyName:'DefaultCompany', productName:'Plant practice', productVersion:'1'
 });
 window.addEventListener('message', async event => {

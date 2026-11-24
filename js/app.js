@@ -66,6 +66,8 @@
   }
 
   var plantPractice = new URLSearchParams(location.search).get('practice') === 'plant';
+  // Unity build version: change it with every new Unity build (practice-player.html and unity/index.html use it for their file URLs)
+  var BUILD_V = 'b1124';
 
   // Practice room items: every clickable object in the Unity practice scene (ids = ClickableItem.itemId).
   // Only plant / brown_table / lamp are needed; the rest are there so hovering, clicking and searching work like the real task.
@@ -340,7 +342,7 @@
     area.classList.add('has-frame', 'plant-room');
     var frame = document.createElement('iframe');
     frame.title = 'Plant practice room';
-    frame.src = 'practice-player.html';
+    frame.src = 'practice-player.html?v=' + BUILD_V;
     window.addEventListener('message', function (event) {
       if (event.origin !== location.origin || event.source !== frame.contentWindow) return;
       var hit = event.data;
@@ -930,6 +932,7 @@
     url.searchParams.set('variant', variant);
     url.searchParams.set('pid', pid);
     url.searchParams.set('host', location.origin);
+    url.searchParams.set('v', BUILD_V);   // new Unity build -> new URLs, so browsers never mix cached old and new build files
     if (/^\d+$/.test(q.get('layout') || '')) url.searchParams.set('layout', q.get('layout'));
 
     var frame = document.createElement('iframe');
